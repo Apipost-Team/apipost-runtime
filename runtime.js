@@ -1496,4 +1496,4 @@ const Runtime = function ApipostRuntime() {
     return;
 }
 
-export default {Runtime,Collection};
+module.exports = {Runtime,Collection};
