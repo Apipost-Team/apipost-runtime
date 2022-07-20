@@ -707,7 +707,7 @@ const Sandbox = function ApipostSandbox() {
     })
 }
 
-const Collection  = function ApipostCollection(definition, option = { iterationCount: 1, sleep: 0 }) {
+export const Collection  = function ApipostCollection(definition, option = { iterationCount: 1, sleep: 0 }) {
     const { iterationCount, sleep } = option;
 
     let definitionTlp = {
@@ -766,7 +766,7 @@ const Collection  = function ApipostCollection(definition, option = { iterationC
     })
 }
 
-const Runtime = function ApipostRuntime() {
+export const Runtime = function ApipostRuntime() {
     const sandbox = new Sandbox();
 
     // sleep 延迟方法
@@ -1496,4 +1496,4 @@ const Runtime = function ApipostRuntime() {
     return;
 }
 
-module.exports = {Runtime,Collection};
+export default {Runtime,Collection};

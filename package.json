@@ -2,9 +2,13 @@
   "name": "apipost-runtime",
   "version": "1.0.1",
   "description": "apipost-runtime",
-  "main": "runtime.js",
+  "main": "dist/runtime.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm version patch && rollup -c rollup.config.js && npm publish"
   },
   "repository": {
     "type": "git",
@@ -40,6 +44,8 @@
     "mockjs": "^1.1.0",
     "moment": "^2.29.4",
     "navigator": "^1.0.1",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-terser": "^7.0.2",
     "strip-json-comments": "^4.0.0",
     "uuid": "^8.3.2",
     "vm2": "^3.9.10",
