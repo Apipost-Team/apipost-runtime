@@ -8,7 +8,7 @@ export default [{
   output: {
     name: 'apipost-runtime',
     file: 'dist/index.js',
-    format: 'cjs'
+    format: 'amd'
   },
   plugins: [
     commonjs(),
