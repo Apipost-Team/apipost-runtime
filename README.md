@@ -1,6 +1,6 @@
 # 🚀 apipost-runtime
 
-Apipost 运行时支持许多选项，可以针对不同的环境和用例自定义其行为。apipost-runtime 支持单接口http请求、自动化测试。
+apipost-runtime 支持单接口http请求、自动化测试。其支持的选项含义可参考下方的demo注释。
 
 ## Install
 
