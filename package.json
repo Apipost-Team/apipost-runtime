@@ -1,0 +1,48 @@
+{
+  "name": "apipost-runtime",
+  "version": "1.0.0",
+  "description": "apipost-runtime",
+  "main": "runtime.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Apipost-Team/apipost-runtime.git"
+  },
+  "keywords": [
+    "apipost",
+    "runtime"
+  ],
+  "author": "apipost",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Apipost-Team/apipost-runtime/issues"
+  },
+  "homepage": "https://github.com/Apipost-Team/apipost-runtime#readme",
+  "dependencies": {
+    "apipost-inside-tools": "^0.1.5",
+    "apipost-send": "^0.0.11",
+    "apipost-tools": "^0.0.13",
+    "art-template": "^4.13.2",
+    "atob": "^2.1.2",
+    "btoa": "^1.2.1",
+    "chai": "^4.3.6",
+    "chai-apipost": "^0.0.2",
+    "colors": "^1.4.0",
+    "crypto-js": "^4.1.1",
+    "dayjs": "^1.11.4",
+    "jquery": "^3.6.0",
+    "json-bigint": "^1.0.0",
+    "json5": "^2.2.1",
+    "jsonpath": "^1.1.1",
+    "lodash": "^4.17.21",
+    "mockjs": "^1.1.0",
+    "moment": "^2.29.4",
+    "navigator": "^1.0.1",
+    "strip-json-comments": "^4.0.0",
+    "uuid": "^8.3.2",
+    "vm2": "^3.9.10",
+    "x2js": "^3.4.3"
+  }
+}
