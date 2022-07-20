@@ -1392,7 +1392,7 @@ const Runtime = function ApipostRuntime() {
                                     sandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) { })
                                 }
 
-                                _requestPara = _request = res = _parent_ids = item = null;
+                                _requestPara = _request = res = _parent_ids = null;
                             }
                             break;
                         case 'for':
