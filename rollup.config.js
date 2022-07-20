@@ -1,5 +1,5 @@
 import commonjs from 'rollup-plugin-commonjs'
-import babel from 'rollup-plugin-babel';
+import { terser } from 'rollup-plugin-terser';
 
 export default [{
   name: 'apipost-runtime',
@@ -7,14 +7,10 @@ export default [{
   output: {
     name: 'apipost-runtime',
     file: 'dist/index.js',
-    format: 'amd'
+    format: 'cjs'
   },
   plugins: [
     commonjs(),
-    babel({
-      exclude: 'node_modules/**',
-      plugins: ['external-helpers'],
-  }),
+    terser(),
   ]
 }]
-
