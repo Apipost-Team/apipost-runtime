@@ -19,11 +19,11 @@ const apipostRequest = require('apipost-send'),
     aTools = require('apipost-tools'),
     artTemplate = require('art-template');
 
-if (typeof navigator == 'undefined') {
-    const atob = require("atob"),
-        btoa = require('btoa'),
-        navigator = require('navigator');
-}
+// if (typeof navigator == 'undefined') {
+//     const atob = require("atob"),
+//         btoa = require('btoa'),
+//         navigator = require('navigator');
+// }
 
 // 当前流程总错误计数器
 var RUNNER_ERROR_COUNT = 0;
@@ -651,8 +651,8 @@ const Sandbox = function ApipostSandbox() {
                     ...{ pm },
                     ...{ chai },
                     ...{ emitAssertResult },
-                    ...{ atob },
-                    ...{ btoa },
+                    // ...{ atob },
+                    // ...{ btoa },
                     ...{ JSON5 },
                     ...{ _ },
                     ...{ Mock },
