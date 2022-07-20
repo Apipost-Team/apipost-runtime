@@ -2,7 +2,7 @@
   "name": "apipost-runtime",
   "version": "1.0.2",
   "description": "apipost-runtime",
-  "main": "dist/runtime.js",
+  "main": "dist/index.js",
   "files": [
     "dist"
   ],
