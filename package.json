@@ -1,6 +1,6 @@
 {
   "name": "apipost-runtime",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "apipost-runtime",
   "main": "dist/index.js",
   "files": [
