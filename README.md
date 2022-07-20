@@ -97,7 +97,7 @@ myRuntime.run(myCollection.definition, {
             "test": `//apt.assert('response.raw.responseText==\"test\"');`
         }
     }, // 全局参数
-    collection: [target1, target2, target3], // 当前项目的所有接口列表
+    collection: [target1, target2, target3], // 当前流程所需的
     combined_id: uuid.v4(), // 测试套件ID，单测试用例的话传 0
     test_events: [{
         test_id: 'aaaa-aaaa-aaaa-aaaa',
