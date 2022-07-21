@@ -1,4 +1,6 @@
 const apipostRequest = require('apipost-send'),
+    zlib = require('zlib'),
+    Buffer = require('buffer/').Buffer,
     _ = require('lodash'),
     chai = require('chai'),
     JSON5 = require('json5'),
@@ -18,19 +20,11 @@ const apipostRequest = require('apipost-send'),
     JSONbig = require('json-bigint'),
     aTools = require('apipost-tools'),
     artTemplate = require('art-template');
-
-// if (typeof navigator == 'undefined') {
-//     const atob = require("atob"),
-//         btoa = require('btoa'),
-//         navigator = require('navigator');
-// }
-
 // 当前流程总错误计数器
 var RUNNER_ERROR_COUNT = 0;
 var RUNNER_PROGRESS = 0;
-
-// run
-const RUNNER_RESULT_LOG = [];
+var RUNNER_RESULT_LOG = [];
+var RUNNER_STOP = 0;
 
 // 结果转换函数
 const ConvertResult = function (status, message, data) {
@@ -50,9 +44,9 @@ const emitRuntimeEvent = function (msg) {
 
 // cli console
 const cliConsole = function () {
-    if (typeof window == 'undefined') {
-        console.log(_.join(arguments, ' '))
-    }
+    // if (typeof window == 'undefined') {
+    console.log(_.join(arguments, ' '))
+    // }
 }
 
 // Apipost 沙盒
@@ -236,21 +230,23 @@ const Sandbox = function ApipostSandbox() {
             // 更新日志
             let item = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', scope.iteration_id));
 
-            if (!_.isArray(item.assert)) {
-                item.assert = [];
-            }
+            if (item) {
+                if (!_.isArray(item.assert)) {
+                    item.assert = [];
+                }
 
-            item.assert.push({
-                status: status,
-                expect: expect,
-                result: result
-            });
+                item.assert.push({
+                    status: status,
+                    expect: expect,
+                    result: result
+                });
 
-            if (status === 'success') {
-                cliConsole(`\t✓`.green, ` ${expect} 匹配`.grey)
-            } else {
-                RUNNER_ERROR_COUNT++;
-                cliConsole(`\t${RUNNER_ERROR_COUNT}. ${expect} ${result}`.bold.red);
+                if (status === 'success') {
+                    cliConsole(`\t✓`.green, ` ${expect} 匹配`.grey)
+                } else {
+                    RUNNER_ERROR_COUNT++;
+                    cliConsole(`\t${RUNNER_ERROR_COUNT}. ${expect} ${result}`.bold.red);
+                }
             }
         }
     }
@@ -277,7 +273,10 @@ const Sandbox = function ApipostSandbox() {
     function emitVisualizerHtml(status, html, scope) {
         if (typeof scope != 'undefined' && _.isObject(scope)) {
             let item = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', scope.iteration_id));
-            item.visualizer_html = { status, html }
+
+            if (item) {
+                item.visualizer_html = { status, html }
+            }
         }
     }
 
@@ -290,7 +289,12 @@ const Sandbox = function ApipostSandbox() {
                 emitRuntimeEvent({
                     action: 'console',
                     method: method,
-                    message: Array.from(arguments)
+                    message: {
+                        type: 'log',
+                        data: Array.from(arguments)
+                    },
+                    timestamp: Date.now(),
+                    datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
                 })
             }
         });
@@ -448,110 +452,112 @@ const Sandbox = function ApipostSandbox() {
             // 更新日志
             let item = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', scope.iteration_id));
 
-            Object.defineProperty(pm, 'setRequestQuery', {
-                configurable: true,
-                value: function (key, value) {
-                    if (_.trim(key) != '') {
-                        if (!_.has(item, 'beforeRequest.query')) {
-                            _.set(item, `beforeRequest.query`, []);
+            if (item) {
+                Object.defineProperty(pm, 'setRequestQuery', {
+                    configurable: true,
+                    value: function (key, value) {
+                        if (_.trim(key) != '') {
+                            if (!_.has(item, 'beforeRequest.query')) {
+                                _.set(item, `beforeRequest.query`, []);
 
+                            }
+
+                            item.beforeRequest.query.push({
+                                action: 'set',
+                                key: key,
+                                value: value
+                            });
                         }
-
-                        item.beforeRequest.query.push({
-                            action: 'set',
-                            key: key,
-                            value: value
-                        });
                     }
-                }
-            });
+                });
 
-            Object.defineProperty(pm, 'removeRequestQuery', {
-                configurable: true,
-                value: function (key) {
-                    if (_.trim(key) != '') {
-                        if (!_.has(item, 'beforeRequest.query')) {
-                            _.set(item, `beforeRequest.query`, []);
+                Object.defineProperty(pm, 'removeRequestQuery', {
+                    configurable: true,
+                    value: function (key) {
+                        if (_.trim(key) != '') {
+                            if (!_.has(item, 'beforeRequest.query')) {
+                                _.set(item, `beforeRequest.query`, []);
 
+                            }
+
+                            item.beforeRequest.query.push({
+                                action: 'remove',
+                                key: key
+                            });
                         }
-
-                        item.beforeRequest.query.push({
-                            action: 'remove',
-                            key: key
-                        });
                     }
-                }
-            });
+                });
 
-            Object.defineProperty(pm, 'setRequestHeader', {
-                configurable: true,
-                value: function (key, value) {
-                    if (_.trim(key) != '') {
-                        if (!_.has(item, 'beforeRequest.header')) {
-                            _.set(item, `beforeRequest.header`, []);
+                Object.defineProperty(pm, 'setRequestHeader', {
+                    configurable: true,
+                    value: function (key, value) {
+                        if (_.trim(key) != '') {
+                            if (!_.has(item, 'beforeRequest.header')) {
+                                _.set(item, `beforeRequest.header`, []);
 
+                            }
+
+                            item.beforeRequest.header.push({
+                                action: 'set',
+                                key: key,
+                                value: value
+                            });
                         }
-
-                        item.beforeRequest.header.push({
-                            action: 'set',
-                            key: key,
-                            value: value
-                        });
                     }
-                }
-            });
+                });
 
-            Object.defineProperty(pm, 'removeRequestHeader', {
-                configurable: true,
-                value: function (key) {
-                    if (_.trim(key) != '') {
-                        if (!_.has(item, 'beforeRequest.header')) {
-                            _.set(item, `beforeRequest.header`, []);
+                Object.defineProperty(pm, 'removeRequestHeader', {
+                    configurable: true,
+                    value: function (key) {
+                        if (_.trim(key) != '') {
+                            if (!_.has(item, 'beforeRequest.header')) {
+                                _.set(item, `beforeRequest.header`, []);
 
+                            }
+
+                            item.beforeRequest.header.push({
+                                action: 'remove',
+                                key: key
+                            });
                         }
-
-                        item.beforeRequest.header.push({
-                            action: 'remove',
-                            key: key
-                        });
                     }
-                }
-            });
+                });
 
-            Object.defineProperty(pm, 'setRequestBody', {
-                configurable: true,
-                value: function (key, value) {
-                    if (_.trim(key) != '') {
-                        if (!_.has(item, 'beforeRequest.body')) {
-                            _.set(item, `beforeRequest.body`, []);
+                Object.defineProperty(pm, 'setRequestBody', {
+                    configurable: true,
+                    value: function (key, value) {
+                        if (_.trim(key) != '') {
+                            if (!_.has(item, 'beforeRequest.body')) {
+                                _.set(item, `beforeRequest.body`, []);
 
+                            }
+
+                            item.beforeRequest.body.push({
+                                action: 'set',
+                                key: key,
+                                value: value
+                            });
                         }
-
-                        item.beforeRequest.body.push({
-                            action: 'set',
-                            key: key,
-                            value: value
-                        });
                     }
-                }
-            });
+                });
 
-            Object.defineProperty(pm, 'removeRequestBody', {
-                configurable: true,
-                value: function (key) {
-                    if (_.trim(key) != '') {
-                        if (!_.has(item, 'beforeRequest.body')) {
-                            _.set(item, `beforeRequest.body`, []);
+                Object.defineProperty(pm, 'removeRequestBody', {
+                    configurable: true,
+                    value: function (key) {
+                        if (_.trim(key) != '') {
+                            if (!_.has(item, 'beforeRequest.body')) {
+                                _.set(item, `beforeRequest.body`, []);
 
+                            }
+
+                            item.beforeRequest.body.push({
+                                action: 'remove',
+                                key: key
+                            });
                         }
-
-                        item.beforeRequest.body.push({
-                            action: 'remove',
-                            key: key
-                        });
                     }
-                }
-            });
+                });
+            }
         }
 
         // expert
@@ -645,7 +651,7 @@ const Sandbox = function ApipostSandbox() {
                 return CryptoJS.MD5(str).toString()
             };
 
-            res = (new vm2.VM({
+            (new vm2.VM({
                 timeout: 1000,
                 sandbox: {
                     ...{ pm },
@@ -972,15 +978,15 @@ const Runtime = function ApipostRuntime() {
             ignore_count: ignoreCount,
             http: {
                 passed: _.subtract(totalEffectiveCount, httpErrorCount),
-                passed_per: `${_.floor(_.divide(_.subtract(totalEffectiveCount, httpErrorCount), totalEffectiveCount), 2) * 100}%`,
+                passed_per: _.floor(_.divide(_.subtract(totalEffectiveCount, httpErrorCount), totalEffectiveCount), 2),
                 failure: httpErrorCount,
-                failure_per: `${_.floor(_.divide(httpErrorCount, totalEffectiveCount), 2) * 100}%`
+                failure_per: _.floor(_.divide(httpErrorCount, totalEffectiveCount), 2)
             },
             assert: {
                 passed: _.subtract(totalEffectiveCount, assertErrorCount),
-                passed_per: `${_.floor(_.divide(_.subtract(totalEffectiveCount, assertErrorCount), totalEffectiveCount), 2) * 100}%`,
+                passed_per: _.floor(_.divide(_.subtract(totalEffectiveCount, assertErrorCount), totalEffectiveCount), 2),
                 failure: assertErrorCount,
-                failure_per: `${_.floor(_.divide(assertErrorCount, totalEffectiveCount), 2) * 100}%`
+                failure_per: _.floor(_.divide(assertErrorCount, totalEffectiveCount), 2)
             },
             start_time: startTime,
             end_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
@@ -1018,12 +1024,36 @@ const Runtime = function ApipostRuntime() {
     let initDefinitions = []; // 原始colletion
     let reportId = '';
 
+    // 参数初始化
+    function runInit() {
+        reportId = uuid.v4(); // 测试事件的ID
+        RUNNER_ERROR_COUNT = 0;
+        // totalRuntimeCount = 0
+        runtimeCountPointer = 0; // 需要跑的总event分子
+        startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
+        startTimeStamp = Date.now(); // 开始时间戳
+        RUNNER_RESULT_LOG = [];
+    }
+
+    // 停止 run
+    function stop() {
+        RUNNER_STOP = 1;
+    }
+
     async function run(definitions, option = {}, initFlag = 0) {
         if (initFlag == 0) { // 初始化参数
-            reportId = uuid.v4(), // 测试事件的ID
-                initDefinitions = definitions;
-            RUNNER_ERROR_COUNT = 0;
-            _.remove(RUNNER_RESULT_LOG, function () { return true });
+            if (RUNNER_RESULT_LOG.length > 0) { // 当前有任务时，拒绝新任务
+                return;
+            }
+
+            runInit();
+            RUNNER_STOP = 0;
+            totalRuntimeCount = definitions[0].condition.limit * definitions[0].children.length;
+            initDefinitions = definitions;
+        } else {
+            if (RUNNER_STOP > 0) {
+                return;
+            }
         }
 
         option = _.assign({
@@ -1038,7 +1068,12 @@ const Runtime = function ApipostRuntime() {
             requester: {} // 发送模块的 options
         }, option);
 
-        var { project, collection, iterationData, combined_id, test_events, default_report_name, user, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+        var { scene, project, collection, iterationData, combined_id, test_events, default_report_name, user, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+
+        // 使用场景 auto_test/request
+        if (_.isUndefined(scene)) {
+            scene = 'auto_test';
+        }
 
         // 兼容 单接口请求 和 自动化测试
         if (!uuid.validate(combined_id)) {
@@ -1089,10 +1124,6 @@ const Runtime = function ApipostRuntime() {
 
         if (_.isArray(definitions) && definitions.length > 0) {
             for (let i = 0; i < definitions.length; i++) {
-                if (initFlag == 0) {
-                    totalRuntimeCount = definitions[0].condition.limit * definitions[0].children.length;
-                }
-
                 let definition = definitions[i];
                 _.assign(definition, {
                     iteration_id: uuid.v4(),  // 每次执行单任务的ID
@@ -1128,7 +1159,7 @@ const Runtime = function ApipostRuntime() {
                             break;
                         case 'if':
                             if (returnBoolean(sandbox.replaceIn(definition.condition.var), definition.condition.compare, sandbox.replaceIn(definition.condition.value))) {
-                                await run(definition.children, option, _.add(initFlag, 1));
+                                await run(definition.children, option, 1);
                             }
                             break;
                         case 'request':
@@ -1355,8 +1386,14 @@ const Runtime = function ApipostRuntime() {
                                     _.set(_request, `request.auth.${_requestPara['auth'].type}`, _requestPara['auth'][_requestPara['auth'].type]);
                                 }
 
+                                // url 兼容
                                 let _url = _request.url ? _request.url : _request.request.url;
                                 _url = sandbox.replaceIn(_url);
+
+                                if (_.startsWith(_.lowerCase(_url), 'https://') && _.startsWith(_.lowerCase(_url), 'http://')) {
+                                    _url = `http://${_url}`;
+                                }
+
                                 _.set(_request, 'url', _url);
                                 _.set(_request, 'request.url', _url)
 
@@ -1369,36 +1406,82 @@ const Runtime = function ApipostRuntime() {
                                     res = e;
                                 }
 
+                                // 发送console
+                                if (scene != 'auto_test') {
+                                    emitRuntimeEvent({
+                                        action: 'console',
+                                        method: res.status === 'error' ? 'error' : 'log',
+                                        message: {
+                                            type: 'request',
+                                            data: res
+                                        },
+                                        timestamp: Date.now(),
+                                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                                    })
+                                }
+
                                 if (res.status === 'error') {
                                     _isHttpError = 1;
                                     RUNNER_ERROR_COUNT++;
-                                    cliConsole(`\n${_request.method} ${_request.url}`.grey);
-                                    cliConsole(`\t${RUNNER_ERROR_COUNT}. HTTP 请求失败`.bold.red); //underline. 
+
+                                    if (scene == 'auto_test') {
+                                        cliConsole(`\n${_request.method} ${_request.url}`.grey);
+                                        cliConsole(`\t${RUNNER_ERROR_COUNT}. HTTP 请求失败`.bold.red); //underline. 
+                                    }
                                 } else {
                                     _isHttpError = -1;
-                                    cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}B, ${res.data.response.responseTime}ms]`.grey);
-                                    cliConsole(`\t✓`.green, ` HTTP 请求成功`.grey);
+                                    if (scene == 'auto_test') {
+                                        cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}B, ${res.data.response.responseTime}ms]`.grey);
+                                        cliConsole(`\t✓`.green, ` HTTP 请求成功`.grey);
+                                    }
                                 }
 
-                                let log = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', definition.iteration_id));
-                                _.assign(log, {
+                                // 优化返回体结构
+                                let _response = _.cloneDeep(res);
+
+                                if (_response.status == "success" && _.isObject(_response.data.response)) {
+                                    _.unset(_response, 'data.response.base64Body');
+                                    _.unset(_response, 'data.response.header');
+                                    _.unset(_response, 'data.response.resHeaders');
+                                    _.unset(_response, 'data.response.json');
+                                    _.unset(_response, 'data.response.raw');
+                                    _.unset(_response, 'data.response.rawBody');
+                                    _.unset(_response, 'data.response.rawCookies');
+                                    _.unset(_response, 'data.response.cookies');
+                                }
+
+                                try {
+                                    _.set(_response, 'data.response.stream.data', Array.from(zlib.deflateSync(Buffer.from(_response.data.response.stream.data))));
+                                } catch (err) { }
+
+                                _.assign(_target, {
                                     request: _request,
-                                    response: res,
+                                    response: _response,
                                     http_error: _isHttpError
                                 })
+
+                                if (definition.event_id != '0' && scene == 'auto_test') {
+                                    emitRuntimeEvent({
+                                        action: 'current_event_id',
+                                        combined_id: combined_id,
+                                        test_id: definition.test_id,
+                                        current_event_id: definition.event_id,
+                                        test_log: _target
+                                    })
+                                }
 
                                 // 执行后执行脚本
                                 if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
                                     sandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) { })
                                 }
 
-                                _requestPara = _request = res = _parent_ids = null;
+                                _requestPara = _request = _response = res = _parent_ids = _log = null;
                             }
                             break;
                         case 'for':
                             if (_.isArray(definition.children) && definition.children.length > 0) {
                                 for (let i = 0; i < sandbox.replaceIn(definition.condition.limit); i++) {
-                                    await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.limit) }), _.add(initFlag, 1))
+                                    await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), 1)
                                 }
                             }
                             break;
@@ -1411,23 +1494,24 @@ const Runtime = function ApipostRuntime() {
                                         break;
                                     }
 
-                                    await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), _.add(initFlag, 1))
+                                    await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), 1)
                                 }
                             }
                             break;
                         case 'begin':
-                            await run(definition.children, option, _.add(initFlag, 1))
+                            await run(definition.children, option, 1)
                             break;
                         default:
                             break;
                     }
 
-                    if (definition.event_id != '0') {
+                    if (definition.type != 'api' && definition.event_id != '0' && scene == 'auto_test') {
                         emitRuntimeEvent({
                             action: 'current_event_id',
                             combined_id: combined_id,
                             test_id: definition.test_id,
-                            current_event_id: definition.event_id
+                            current_event_id: definition.event_id,
+                            test_log: null // 非 api 不传 test_log
                         })
                     }
 
@@ -1436,51 +1520,75 @@ const Runtime = function ApipostRuntime() {
                         runtimeCountPointer++;
                         RUNNER_PROGRESS = _.floor(_.divide(runtimeCountPointer, totalRuntimeCount), 2);
 
-                        emitRuntimeEvent({
-                            action: 'progress',
-                            progress: RUNNER_PROGRESS,
-                            combined_id: combined_id,
-                            test_id: definition.test_id,
-                            current_event_id: definition.event_id
-                        })
+                        if (scene == 'auto_test') {
+                            emitRuntimeEvent({
+                                action: 'progress',
+                                progress: RUNNER_PROGRESS,
+                                combined_id: combined_id,
+                                test_id: definition.test_id,
+                                current_event_id: definition.event_id
+                            })
+                        }
 
                         if (RUNNER_PROGRESS == 1) { // 完成
-                            // 获取未跑的 event 
-                            (function getIgnoreAllApis(initDefinitions) {
-                                initDefinitions.forEach(item => {
-                                    if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
-                                        RUNNER_RESULT_LOG.push({
-                                            test_id: item.test_id,
-                                            report_id: reportId,
-                                            parent_id: item.parent_id,
-                                            event_id: item.event_id,
-                                            iteration_id: uuid.v4(),
-                                            type: item.type,
-                                            target_id: item.target_id,
-                                            request: item.request,
-                                            response: {},
-                                            http_error: -2,
-                                            assert: [],
-                                            datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                                        })
-                                    }
+                            if (scene == 'auto_test') {
+                                // 获取未跑的 event 
+                                (function getIgnoreAllApis(initDefinitions) {
+                                    initDefinitions.forEach(item => {
+                                        if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
+                                            RUNNER_RESULT_LOG.push({
+                                                test_id: item.test_id,
+                                                report_id: reportId,
+                                                parent_id: item.parent_id,
+                                                event_id: item.event_id,
+                                                iteration_id: uuid.v4(),
+                                                type: item.type,
+                                                target_id: item.target_id,
+                                                request: item.request,
+                                                response: {},
+                                                http_error: -2,
+                                                assert: [],
+                                                datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                                            })
+                                        }
 
-                                    if (_.isArray(item.children)) {
-                                        getIgnoreAllApis(item.children)
-                                    }
+                                        if (_.isArray(item.children)) {
+                                            getIgnoreAllApis(item.children)
+                                        }
+                                    })
+                                })(initDefinitions);
+
+                                emitRuntimeEvent({
+                                    action: "complate",
+                                    combined_id: combined_id,
+                                    envs: {
+                                        globals: sandbox.variablesScope.globals,
+                                        environment: sandbox.variablesScope.environment
+                                    },
+                                    test_report: calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, reportId, { combined_id, test_events, default_report_name, user, env_name })
                                 })
-                            })(initDefinitions);
+                            } else {
+                                let _http = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', definition.iteration_id));
 
-                            emitRuntimeEvent({
-                                action: 'complate',
-                                combined_id: combined_id,
-                                envs: {
-                                    globals: sandbox.variablesScope.globals,
-                                    environment: sandbox.variablesScope.environment
-                                },
-                                test_log: RUNNER_RESULT_LOG,
-                                test_report: calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, reportId, { combined_id, test_events, default_report_name, user, env_name })
-                            })
+                                emitRuntimeEvent({
+                                    action: 'http_complate',
+                                    envs: {
+                                        globals: sandbox.variablesScope.globals,
+                                        environment: sandbox.variablesScope.environment
+                                    },
+                                    data: {
+                                        assert: _http.assert,
+                                        target_id: _http.target_id,
+                                        response: _http.response,
+                                    },
+                                    timestamp: Date.now(),
+                                    datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                                })
+                            }
+
+                            runInit();
+                            RUNNER_SWITCH_ON = 'free'; //['free', 'busy', 'stop']
+                            initDefinitions = [];
                         }
                     }
                 }
@@ -1493,8 +1601,13 @@ const Runtime = function ApipostRuntime() {
         value: run
     })
 
+    Object.defineProperty(this, 'stop', {
+        value: stop
+    })
+
     return;
 }
+
 
 module.exports.Runtime = Runtime;
 module.exports.Collection = Collection;

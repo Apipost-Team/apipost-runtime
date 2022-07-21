@@ -1,7 +1,7 @@
 {
   "name": "apipost-runtime",
   "version": "1.0.8",
-  "description": "apipost-runtime",
+  "description": "apipost-runtime 支持单接口http请求、自动化测试",
   "main": "dist/index.js",
   "files": [
     "dist"
@@ -32,7 +32,7 @@
     "atob": "^2.1.2",
     "btoa": "^1.2.1",
     "chai": "^4.3.6",
-    "chai-apipost": "^0.0.2",
+    "chai-apipost": "^0.0.3",
     "colors": "^1.4.0",
     "crypto-js": "^4.1.1",
     "dayjs": "^1.11.4",
@@ -49,6 +49,8 @@
     "strip-json-comments": "3.1.1",
     "uuid": "^8.3.2",
     "vm2": "^3.9.10",
-    "x2js": "^3.4.3"
+    "x2js": "^3.4.3",
+    "zlib": "^1.0.5",
+    "buffer": "^6.0.3"
   }
 }
