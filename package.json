@@ -1,7 +1,7 @@
 {
   "name": "apipost-runtime",
-  "version": "1.0.7",
-  "description": "apipost-runtime",
+  "version": "1.0.9",
+  "description": "apipost-runtime 支持单接口http请求、自动化测试",
   "main": "dist/index.js",
   "files": [
     "dist"
