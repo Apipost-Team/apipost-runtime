@@ -1587,7 +1587,6 @@ const Runtime = function ApipostRuntime() {
                             }
 
                             runInit();
-                            RUNNER_SWITCH_ON = 'free'; //['free', 'busy', 'stop']
                             initDefinitions = [];
                         }
                     }
