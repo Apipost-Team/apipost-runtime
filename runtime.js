@@ -1390,7 +1390,7 @@ const Runtime = function ApipostRuntime() {
                                 let _url = _request.url ? _request.url : _request.request.url;
                                 _url = sandbox.replaceIn(_url);
 
-                                if (_.startsWith(_.lowerCase(_url), 'https://') && _.startsWith(_.lowerCase(_url), 'http://')) {
+                                if (!_.startsWith(_.lowerCase(_url), 'https://') && !_.startsWith(_.lowerCase(_url), 'http://')) {
                                     _url = `http://${_url}`;
                                 }
 
