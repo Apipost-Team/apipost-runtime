@@ -1,3 +1,5 @@
+const { report } = require('process');
+
 const apipostRequest = require('apipost-send'),
     zlib = require('zlib'),
     Buffer = require('buffer/').Buffer,
@@ -43,7 +45,7 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
         cookie: [], // 响应cookie ，仅适用于 api或者request
         assert: []
     };
-    
+
     (function createRuntimeList(r, parent_id = '0') {
         if (r instanceof Array && r.length > 0) {
             r.forEach(item => {
@@ -90,12 +92,11 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
 
 const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     // 当前流程总错误计数器
-    let RUNNER_TOTAL_COUNT = 0; // 需要跑的总event分母
-    let RUNNER_REPORT_ID = '';
-    let RUNNER_ERROR_COUNT = 0;
-    let RUNNER_PROGRESS = 0;
-    let RUNNER_RESULT_LOG = {};
-    let RUNNER_STOP = 0;
+    let RUNNER_TOTAL_COUNT = 0, // 需要跑的总event分母
+        RUNNER_ERROR_COUNT = 0,
+        RUNNER_PROGRESS = 0,
+        RUNNER_RESULT_LOG = {},
+        RUNNER_STOP = {};
 
     if (typeof emitRuntimeEvent != 'function') {
         emitRuntimeEvent = function () { }
@@ -1014,7 +1015,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
     // 参数初始化
     function runInit() {
-        RUNNER_REPORT_ID = uuid.v4(); // 测试事件的ID
         RUNNER_ERROR_COUNT = 0;
         // RUNNER_TOTAL_COUNT = 0
         startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
@@ -1023,37 +1023,23 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     }
 
     // 停止 run
-    function stop() {
-        RUNNER_STOP = 1;
+    function stop(report_id, message) {
+        RUNNER_STOP[report_id] = 1;
+
+        emitRuntimeEvent({
+            action: "stop",
+            report_id: report_id,
+            message: message
+        })
     }
 
-    let startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
-    let startTimeStamp = Date.now(); // 开始时间戳
-    let initDefinitions = []; // 原始colletion
-    let RUNNER_RUNTIME_POINTER = 0;
+    let startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'), // 开始时间
+        startTimeStamp = Date.now(), // 开始时间戳
+        initDefinitions = [], // 原始colletion
+        RUNNER_RUNTIME_POINTER = 0;
 
     // start run
     async function run(definitions, option = {}, initFlag = 0) {
-        if (initFlag == 0) { // 初始化参数
-            if (_.size(RUNNER_RESULT_LOG) > 0) { // 当前有任务时，拒绝新任务
-                return;
-            }
-
-            runInit();
-            RUNNER_STOP = 0;
-            RUNNER_TOTAL_COUNT = definitions[0].RUNNER_TOTAL_COUNT;
-            RUNNER_RUNTIME_POINTER = 0;
-            initDefinitions = definitions;
-
-            if (RUNNER_TOTAL_COUNT <= 0) {
-                return;
-            }
-        } else {
-            if (RUNNER_STOP > 0) {
-                return;
-            }
-        }
-
         option = _.assign({
             project: {},
             collection: [], // 当前项目的所有接口列表
@@ -1066,7 +1052,28 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             requester: {} // 发送模块的 options
         }, option);
 
-        var { scene, project, collection, iterationData, combined_id, test_events, default_report_name, user, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+        var { RUNNER_REPORT_ID, scene, project, collection, iterationData, combined_id, test_events, default_report_name, user, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+
+        if (initFlag == 0) { // 初始化参数
+            if (_.size(RUNNER_RESULT_LOG) > 0) { // 当前有任务时，拒绝新任务
+                return;
+            }
+
+            runInit();
+            RUNNER_STOP[RUNNER_REPORT_ID] = 0;
+            RUNNER_TOTAL_COUNT = typeof definitions[0] == 'object' ? definitions[0].RUNNER_TOTAL_COUNT : 0;
+            RUNNER_RUNTIME_POINTER = 0;
+            initDefinitions = definitions;
+
+            if (RUNNER_TOTAL_COUNT <= 0) {
+                return;
+            }
+        } else {
+            if (RUNNER_STOP[RUNNER_REPORT_ID] > 0) {
+                RUNNER_RESULT_LOG = definitions = option = collection = initDefinitions = null;
+                return;
+            }
+        }
 
         // 使用场景 auto_test/request
         if (_.isUndefined(scene)) {
@@ -1153,7 +1160,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         case 'script':
                         case 'assert':
                             if (_.has(definition, 'data.content') && _.isString(definition.data.content)) {
-                                mySandbox.execute(definition.data.content, definition, 'test', function (err, res) { })
+                                mySandbox.execute(definition.data.content, definition, 'test', function (err, res) {
+                                    if (err && ignoreError < 1) {
+                                        stop(RUNNER_REPORT_ID, String(err));
+                                    }
+                                })
                             }
                             break;
                         case 'if':
@@ -1308,7 +1319,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                                 // 执行预执行脚本
                                 if (_.has(_requestPara, 'pre_script') && _.isString(_requestPara.pre_script)) {
-                                    mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', function (err, res) { })
+                                    mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', function (err, res) {
+                                        if (err && ignoreError < 1) {
+                                            stop(RUNNER_REPORT_ID, String(err));
+                                        }
+                                    })
                                 }
 
                                 let _request = _.cloneDeep(definition.request);
@@ -1439,7 +1454,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                                 try {
                                     _.set(_response, 'data.response.stream.data', Array.from(zlib.deflateSync(Buffer.from(_response.data.response.stream.data))));
-                                } catch (err) { }
+                                } catch (err) { } // 此错误无需中止运行
 
                                 _.assign(_target, {
                                     request: _request,
@@ -1506,7 +1521,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                                 // 执行后执行脚本
                                 if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
-                                    mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) { })
+                                    mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) {
+                                        if (err && ignoreError < 1) {
+                                            stop(RUNNER_REPORT_ID, String(err));
+                                        }
+                                    })
                                 }
 
                                 if (definition.event_id != '0' && scene == 'auto_test') {
@@ -1643,6 +1662,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                         runInit();
                         RUNNER_RESULT_LOG = initDefinitions = null;
+
+                        if (RUNNER_STOP[RUNNER_REPORT_ID]) {
+                            console.log('all ok')
+                            delete RUNNER_STOP[RUNNER_REPORT_ID];
+                        }
                     }
                 }
             }
