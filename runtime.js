@@ -283,6 +283,26 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             return variablesStr;
         }
 
+        // console
+        const consoleFn = {};
+        new Array("log", "warn", "info", "error").forEach(method => {
+            Object.defineProperty(consoleFn, method, {
+                configurable: true,
+                value: function () {
+                    emitRuntimeEvent({
+                        action: 'console',
+                        method: method,
+                        message: {
+                            type: 'log',
+                            data: Array.from(arguments)
+                        },
+                        timestamp: Date.now(),
+                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                    })
+                }
+            });
+        })
+
         // 发送断言结果
         function emitAssertResult(status, expect, result, scope) {
             if (typeof scope != 'undefined' && _.isObject(scope) && _.isArray(scope.assert)) {
@@ -299,7 +319,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         expect: expect,
                         result: result
                     });
-
+                    // console.log(item, item.assert)
                     if (status === 'success') {
                         cliConsole(`\t✓`.green, ` ${expect} 匹配`.grey)
                     } else {
@@ -338,26 +358,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
             }
         }
-
-        // console
-        const consoleFn = {};
-        new Array("log", "warn", "info", "error").forEach(method => {
-            Object.defineProperty(consoleFn, method, {
-                configurable: true,
-                value: function () {
-                    emitRuntimeEvent({
-                        action: 'console',
-                        method: method,
-                        message: {
-                            type: 'log',
-                            data: Array.from(arguments)
-                        },
-                        timestamp: Date.now(),
-                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                    })
-                }
-            });
-        })
 
         // 断言自定义拓展规则（100% 兼容postman）
         chai.use(function () {
@@ -712,7 +712,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 (new vm2.VM({
                     timeout: 1000,
-                    mySandbox: {
+                    sandbox: {
                         ...{ pm },
                         ...{ chai },
                         ...{ emitAssertResult },
@@ -751,6 +751,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         }
                     }
                 })).run(new vm2.VMScript(code));
+
                 typeof callback === 'function' && callback();
             } catch (err) {
                 emitTargetPara({
@@ -999,7 +1000,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             });
 
             option.test_events.forEach(test_event => {
-                report.children.push(calculateRuntimeReport(log, initDefinitions, report_id, _.assign(option, {
+                report.children.push(calculateRuntimeReport(_.filter(log, (o) => { return o.test_id == test_event.test_id; }), initDefinitions, report_id, _.assign(option, {
                     combined_id: 0,
                     test_events: test_event,
                     default_report_name: test_event.name
@@ -1015,6 +1016,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         return report;
     }
+
 
     // 参数初始化
     function runInit() {
@@ -1411,20 +1413,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                     res = e;
                                 }
 
-                                // 发送console
-                                if (scene != 'auto_test') {
-                                    emitRuntimeEvent({
-                                        action: 'console',
-                                        method: res.status === 'error' ? 'error' : 'log',
-                                        message: {
-                                            type: 'request',
-                                            data: res
-                                        },
-                                        timestamp: Date.now(),
-                                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                                    })
-                                }
-
                                 if (res.status === 'error') {
                                     _isHttpError = 1;
                                     RUNNER_ERROR_COUNT++;
@@ -1465,6 +1453,68 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                     http_error: _isHttpError
                                 })
 
+                                // 发送console
+
+                                if (scene != 'auto_test') { /// done
+                                    if (res.status === 'error') {
+                                        let _formPara = {}
+
+                                        if (_.indexOf(['form-data', 'urlencoded'], _request.request.body.mode)) {
+                                            if (_.has(_request, 'request.body.parameter')) {
+                                                _request.request.body.parameter.forEach(_para => {
+                                                    if (_para.is_checked > 0) {
+                                                        if (!_formPara[_para.key]) {
+                                                            _formPara[_para.key] = [];
+                                                        }
+                                                        _formPara[_para.key].push(_para.value);
+                                                    }
+                                                })
+                                            }
+                                        } else {
+                                            _formPara = _request.request.body.raw
+                                        }
+
+                                        // 请求控制台信息
+                                        emitRuntimeEvent({
+                                            action: 'console',
+                                            method: 'request',
+                                            message: {
+                                                data: {
+                                                    request: {
+                                                        method: _request.method,
+                                                        url: request.setQueryString(_request.url, request.formatQueries(_request.request.query.parameter)).uri,
+                                                        request_bodys: _.indexOf(['form-data', 'urlencoded'], _request.request.body.mode) ? _.mapValues(_formPara, function (o) {
+                                                            return _.size(o) > 1 ? o : o[0]
+                                                        }) : _formPara,
+                                                        request_headers: {
+                                                            ...request.formatRequestHeaders(_request.request.header.parameter),
+                                                            ...request.createAuthHeaders(_request)
+                                                        }
+                                                    },
+                                                    response: {},
+                                                    message: _response.message,
+                                                    status: "error"
+                                                }
+                                            },
+                                            timestamp: Date.now(),
+                                            datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                                        })
+                                    } else {
+                                        emitRuntimeEvent({
+                                            action: 'console',
+                                            method: 'request',
+                                            message: _response,
+                                            timestamp: Date.now(),
+                                            datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                                        })
+                                    }
+                                }
+
+                                // 执行后执行脚本
+                                if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
+                                    mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) { })
+                                }
+
                                 if (definition.event_id != '0' && scene == 'auto_test') {
                                     emitRuntimeEvent({
                                         action: 'current_event_id',
@@ -1473,11 +1523,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                         current_event_id: definition.event_id,
                                         test_log: _target
                                     })
-                                }
-
-                                // 执行后执行脚本
-                                if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
-                                    mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) { })
                                 }
 
                                 _requestPara = _request = _response = res = _parent_ids = _target = null;
@@ -1621,7 +1666,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
     return;
 }
-
 
 module.exports.Runtime = Runtime;
 module.exports.Collection = Collection;
