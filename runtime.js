@@ -20,697 +20,12 @@ const apipostRequest = require('apipost-send'),
     JSONbig = require('json-bigint'),
     aTools = require('apipost-tools'),
     artTemplate = require('art-template');
-// 当前流程总错误计数器
-var RUNNER_ERROR_COUNT = 0;
-var RUNNER_PROGRESS = 0;
-var RUNNER_RESULT_LOG = [];
-var RUNNER_STOP = 0;
-
-// 结果转换函数
-const ConvertResult = function (status, message, data) {
-    return ASideTools.ConvertResult(status, message, data)
-}
-
-// postMessage
-const emitRuntimeEvent = function (msg) {
-    if (typeof socket == 'object' && _.isObject(socket) && _.isFunction(socket.emit)) { // 云端/桌面代理
-        socket.emit('runtime_response', ConvertResult('success', 'success', msg))
-    } else if (typeof window == 'object' && _.isObject(window) && _.isFunction(window.postMessage)) { // 客户端模式
-        window.postMessage({ event: 'RUNNER_PROCESS_EVENT', data: msg }, location.origin)
-    } else if (typeof global == 'object' && _.isObject(global) && _.isFunction(global.postMessage)) { // node模式
-        global.postMessage({ event: 'RUNNER_PROCESS_EVENT', data: msg }, location.origin)
-    }
-}
 
 // cli console
 const cliConsole = function () {
-    // if (typeof window == 'undefined') {
-    console.log(_.join(arguments, ' '))
-    // }
-}
-
-// Apipost 沙盒
-const Sandbox = function ApipostSandbox() {
-    // 内置变量
-    const insideVariablesScope = {
-        list: {} // 常量
+    if (typeof window == 'undefined') {
+        console.log(_.join(arguments, ' '))
     }
-
-    new Array('natural', 'integer', 'float', 'character', 'range', 'date', 'time', 'datetime', 'now', 'guid', 'integeincrementr', 'url', 'protocol', 'domain', 'tld', 'email', 'ip', 'region', 'province', 'city', 'county', 'county', 'zip', 'first', 'last', 'name', 'cfirst', 'clast', 'cname', 'color', 'rgb', 'rgba', 'hsl', 'paragraph', 'cparagraph', 'sentence', 'csentence', 'word', 'cword', 'title', 'ctitle').forEach(func => {
-        insideVariablesScope.list[`$${func}`] = Mock.mock(`@${func}`);
-    })
-
-    new Array('phone', 'mobile', 'telephone').forEach(func => {
-        insideVariablesScope.list[`$${func}`] = ['131', '132', '137', '188'][_.random(0, 3)] + Mock.mock(/\d{8}/)
-    })
-
-    // 动态变量
-    const variablesScope = {
-        "globals": {}, // 公共变量
-        "environment": {}, // 环境变量
-        "collectionVariables": {}, // 目录变量 当前版本不支持，目前为兼容postman
-        "variables": {}, // 临时变量，无需存库
-        "iterationData": {}, // 流程测试时的数据变量，临时变量，无需存库
-    }
-
-    // 获取所有动态变量
-    function getAllDynamicVariables(type) {
-        if (typeof aptScripts === 'object') {
-            Object.keys(variablesScope).forEach(key => {
-                if (_.isObject(aptScripts[key]) && _.isFunction(aptScripts[key].toObject) && ['iterationData', 'variables'].indexOf(key) > -1) {
-                    _.assign(variablesScope[key], aptScripts[key].toObject())
-                }
-            })
-        }
-
-        if (variablesScope.hasOwnProperty(type)) {
-            return _.isPlainObject(variablesScope[type]) ? variablesScope[type] : {};
-        } else {
-            let allVariables = {};
-            Object.keys(variablesScope).forEach(type => {
-                _.assign(allVariables, variablesScope[type])
-            })
-            return allVariables;
-        }
-    }
-
-    // 设置动态变量
-    const dynamicVariables = {};
-
-    // 变量相关
-    // ['variables'] 临时变量
-    Object.defineProperty(dynamicVariables, 'variables', {
-        configurable: true,
-        value: {
-            set(key, value) {
-                variablesScope['variables'][key] = value;
-            },
-            get(key) {
-                let allVariables = getAllDynamicVariables();
-                return allVariables[key];
-            },
-            has(key) {
-                return getAllDynamicVariables().hasOwnProperty(key);
-            },
-            delete(key) {
-                delete variablesScope['variables'][key];
-            },
-            unset(key) {
-                delete variablesScope['variables'][key];
-            },
-            clear() {
-                variablesScope['variables'] = {};
-            },
-            replaceIn(variablesStr) {
-                return replaceIn(variablesStr);
-            },
-            toObject() {
-                return getAllDynamicVariables()
-            }
-        }
-    })
-
-    // ['iterationData'] 临时变量
-    Object.defineProperty(dynamicVariables, 'iterationData', {
-        configurable: true,
-        value: {
-            set(key, value) {
-                variablesScope['iterationData'][key] = value;
-            },
-            get(key) {
-                return variablesScope['iterationData'][key];
-            },
-            has(key) {
-                return variablesScope['iterationData'].hasOwnProperty(key);
-            },
-            replaceIn(variablesStr) {
-                return replaceIn(variablesStr, 'iterationData');
-            },
-            toObject() {
-                return variablesScope['iterationData']
-            }
-        }
-    })
-
-    // ['globals', 'environment', 'collectionVariables']
-    Object.keys(variablesScope).forEach(type => {
-        if (['iterationData', 'variables'].indexOf(type) === -1) {
-            Object.defineProperty(dynamicVariables, type, {
-                configurable: true,
-                value: {
-                    set(key, value, emitdb = true) {
-                        variablesScope[type][key] = value;
-
-                        if (emitdb) {
-                            typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].set) && aptScripts[type].set(key, value)
-                        }
-                    },
-                    get(key) {
-                        return variablesScope[type][key];
-                    },
-                    has(key) {
-                        return variablesScope[type].hasOwnProperty(key);
-                    },
-                    delete(key) {
-                        delete variablesScope[type][key];
-                        typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].delete) && aptScripts[type].delete(key)
-                    },
-                    unset(key) {
-                        delete variablesScope[type][key];
-                        typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].delete) && aptScripts[type].delete(key)
-                    },
-                    clear() {
-                        variablesScope[type] = {};
-                        typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].clear) && aptScripts[type].clear()
-                    },
-                    replaceIn(variablesStr) {
-                        return replaceIn(variablesStr, type);
-                    },
-                    toObject() {
-                        return variablesScope[type]
-                    }
-                }
-            });
-        }
-    })
-
-    // 获取所有内置变量
-    function getAllInsideVariables() {
-        return _.cloneDeep(insideVariablesScope.list);
-    }
-
-    // 变量替换
-    function replaceIn(variablesStr, type, withMock = false) {
-        let allVariables = getAllInsideVariables();
-        _.assign(allVariables, getAllDynamicVariables(type))
-
-        if (withMock) {
-            variablesStr = Mock.mock(variablesStr);
-        }
-
-        // 替换自定义变量
-        let _regExp = new RegExp(Object.keys(allVariables).map(function (item) {
-            if (_.startsWith(item, '$')) {
-                item = `\\${item}`
-            }
-            return '{{' + item + '}}'
-        }).join("|"), "gi");
-
-        variablesStr = _.replace(variablesStr, _regExp, function (key) {
-            let reStr = allVariables[_.replace(key, /[{}]/gi, '')];
-            return reStr ? reStr : key;
-        });
-
-        return variablesStr;
-    }
-
-    // 发送断言结果
-    function emitAssertResult(status, expect, result, scope) {
-        if (typeof scope != 'undefined' && _.isObject(scope) && _.isArray(scope.assert)) {
-            // 更新日志
-            let item = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', scope.iteration_id));
-
-            if (item) {
-                if (!_.isArray(item.assert)) {
-                    item.assert = [];
-                }
-
-                item.assert.push({
-                    status: status,
-                    expect: expect,
-                    result: result
-                });
-
-                if (status === 'success') {
-                    cliConsole(`\t✓`.green, ` ${expect} 匹配`.grey)
-                } else {
-                    RUNNER_ERROR_COUNT++;
-                    cliConsole(`\t${RUNNER_ERROR_COUNT}. ${expect} ${result}`.bold.red);
-                }
-            }
-        }
-    }
-
-    // 设置响应和请求参数
-    function emitTargetPara(data, scope) {
-        if (typeof scope != 'undefined' && _.isObject(scope)) {
-            // 更新日志
-            let item = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', scope.iteration_id));
-
-            if (item) {
-                switch (data.action) {
-                    case 'SCRIPT_ERROR':
-                        if (item.type == 'api') {
-                            _.set(item, `script_error.${data.eventName}`, data.data)
-                        }
-                        break;
-                }
-            }
-        }
-    }
-
-    // 发送可视化结果
-    function emitVisualizerHtml(status, html, scope) {
-        if (typeof scope != 'undefined' && _.isObject(scope)) {
-            let item = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', scope.iteration_id));
-
-            if (item) {
-                item.visualizer_html = { status, html }
-            }
-        }
-    }
-
-    // console
-    const consoleFn = {};
-    new Array("log", "warn", "info", "error").forEach(method => {
-        Object.defineProperty(consoleFn, method, {
-            configurable: true,
-            value: function () {
-                emitRuntimeEvent({
-                    action: 'console',
-                    method: method,
-                    message: {
-                        type: 'log',
-                        data: Array.from(arguments)
-                    },
-                    timestamp: Date.now(),
-                    datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                })
-            }
-        });
-    })
-
-    // 断言自定义拓展规则（100% 兼容postman）
-    chai.use(function () {
-        require('chai-apipost')(chai);
-    });
-
-    // 执行脚本
-    /**
-         * code js 代码（当前仅支持 js 代码，后续支持多种语言，如 python 等）
-         * scope 当前变量环境对象，里面包含
-         * {
-        //  *      variables   临时变量 此数据为临时数据，无需存库
-         *      globals     公共变量
-         *      environment     环境变量
-         *      collectionVariables     目录变量
-        //  *      iterationData   流程测试时的数据变量 此数据为临时数据，无需存库
-         *      request     请求参数
-         *      response    响应参数
-         *      cookie      cookie
-         *      info        请求运行相关信息
-         * }
-         * 
-         * callback 回调
-     * */
-    function execute(code, scope, eventName, callback) {
-        scope = _.isPlainObject(scope) ? _.cloneDeep(scope) : {};
-
-        // 初始化数据库中的当前变量值 init
-        if (typeof aptScripts === 'object') {
-            Object.keys(variablesScope).forEach(key => {
-                if (_.isObject(aptScripts[key]) && _.isFunction(aptScripts[key].toObject) && ['iterationData', 'variables'].indexOf(key) > -1) {
-                    _.assign(variablesScope[key], aptScripts[key].toObject())
-                }
-            })
-        }
-
-        // pm 对象
-        const pm = {};
-
-        // info, 请求、响应、cookie, iterationData
-        new Array('info', 'request', 'response', 'cookie', 'iterationData').forEach(key => {
-            if (_.indexOf(['request', 'response'], key) > -1) {
-                switch (key) {
-                    case 'request':
-                        if (_.has(scope, `response.data.${key}`) && _.isObject(scope.response.data[key])) {
-                            Object.defineProperty(scope.response.data[key], 'to', {
-                                get() {
-                                    return chai.expect(this).to;
-                                }
-                            });
-
-                            Object.defineProperty(pm, key, {
-                                configurable: true,
-                                value: scope.response.data[key]
-                            });
-                        }
-                        break;
-                    case 'response':
-                        if (_.has(scope, `response.data.${key}`) && _.isObject(scope.response.data[key])) {
-                            if (scope.response.data[key].hasOwnProperty('rawBody')) {
-                                let json = {};
-
-                                try {
-                                    json = JSON5.parse(scope.response.data[key].rawBody);
-                                } catch (e) { }
-
-                                Object.defineProperty(scope.response.data[key], 'json', {
-                                    configurable: true,
-                                    value: function () {
-                                        return _.cloneDeep(json);
-                                    }
-                                });
-
-                                Object.defineProperty(scope.response.data[key], 'text', {
-                                    configurable: true,
-                                    value: function () {
-                                        return scope.response.data[key].rawBody;
-                                    }
-                                });
-                            }
-
-                            Object.defineProperty(scope.response.data[key], 'to', {
-                                get() {
-                                    return chai.expect(this).to;
-                                }
-                            });
-
-                            Object.defineProperty(pm, key, {
-                                configurable: true,
-                                value: scope.response.data[key]
-                            });
-                        }
-                        break;
-                }
-            } else {
-                if (_.isObject(scope[key])) {
-                    switch (key) {
-                        case 'iterationData':
-                            _.assign(variablesScope['iterationData'], scope[key]);
-                            break;
-                        case 'info':
-                            _.assign(scope[key], {
-                                iteration: scope.iteration,
-                                iterationCount: scope.iterationCount,
-                                eventName: eventName,
-                            })
-                            break;
-                    }
-
-                    Object.defineProperty(pm, key, {
-                        configurable: true,
-                        value: scope[key]
-                    });
-                }
-            }
-        })
-
-        // 变量相关
-        Object.keys(variablesScope).forEach(type => {
-            Object.defineProperty(pm, type, {
-                configurable: true,
-                value: dynamicVariables[type]
-            });
-        })
-
-        if (_.isObject(pm.variables)) {
-            Object.defineProperty(pm.variables, 'getName', {
-                configurable: true,
-                value: function () {
-                    return scope.env_name
-                }
-            });
-
-            Object.defineProperty(pm.variables, 'getPreUrl', {
-                configurable: true,
-                value: function () {
-                    return scope.env_pre_url
-                }
-            });
-
-            Object.defineProperty(pm.variables, 'getCollection', {
-                configurable: true,
-                value: function () {
-                    return scope.environment
-                }
-            });
-        }
-
-        // 请求参数相关
-        if (typeof scope != 'undefined' && _.isObject(scope) && _.has(scope, 'request.request')) {
-            // 更新日志
-            let item = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', scope.iteration_id));
-
-            if (item) {
-                Object.defineProperty(pm, 'setRequestQuery', {
-                    configurable: true,
-                    value: function (key, value) {
-                        if (_.trim(key) != '') {
-                            if (!_.has(item, 'beforeRequest.query')) {
-                                _.set(item, `beforeRequest.query`, []);
-
-                            }
-
-                            item.beforeRequest.query.push({
-                                action: 'set',
-                                key: key,
-                                value: value
-                            });
-                        }
-                    }
-                });
-
-                Object.defineProperty(pm, 'removeRequestQuery', {
-                    configurable: true,
-                    value: function (key) {
-                        if (_.trim(key) != '') {
-                            if (!_.has(item, 'beforeRequest.query')) {
-                                _.set(item, `beforeRequest.query`, []);
-
-                            }
-
-                            item.beforeRequest.query.push({
-                                action: 'remove',
-                                key: key
-                            });
-                        }
-                    }
-                });
-
-                Object.defineProperty(pm, 'setRequestHeader', {
-                    configurable: true,
-                    value: function (key, value) {
-                        if (_.trim(key) != '') {
-                            if (!_.has(item, 'beforeRequest.header')) {
-                                _.set(item, `beforeRequest.header`, []);
-
-                            }
-
-                            item.beforeRequest.header.push({
-                                action: 'set',
-                                key: key,
-                                value: value
-                            });
-                        }
-                    }
-                });
-
-                Object.defineProperty(pm, 'removeRequestHeader', {
-                    configurable: true,
-                    value: function (key) {
-                        if (_.trim(key) != '') {
-                            if (!_.has(item, 'beforeRequest.header')) {
-                                _.set(item, `beforeRequest.header`, []);
-
-                            }
-
-                            item.beforeRequest.header.push({
-                                action: 'remove',
-                                key: key
-                            });
-                        }
-                    }
-                });
-
-                Object.defineProperty(pm, 'setRequestBody', {
-                    configurable: true,
-                    value: function (key, value) {
-                        if (_.trim(key) != '') {
-                            if (!_.has(item, 'beforeRequest.body')) {
-                                _.set(item, `beforeRequest.body`, []);
-
-                            }
-
-                            item.beforeRequest.body.push({
-                                action: 'set',
-                                key: key,
-                                value: value
-                            });
-                        }
-                    }
-                });
-
-                Object.defineProperty(pm, 'removeRequestBody', {
-                    configurable: true,
-                    value: function (key) {
-                        if (_.trim(key) != '') {
-                            if (!_.has(item, 'beforeRequest.body')) {
-                                _.set(item, `beforeRequest.body`, []);
-
-                            }
-
-                            item.beforeRequest.body.push({
-                                action: 'remove',
-                                key: key
-                            });
-                        }
-                    }
-                });
-            }
-        }
-
-        // expert
-        Object.defineProperty(pm, 'expect', {
-            configurable: true,
-            value: chai.expect
-        })
-
-        // test
-        Object.defineProperty(pm, 'test', {
-            configurable: true,
-            value: function (desc, callback) {
-                try {
-                    callback();
-                    emitAssertResult('success', desc, '成功', scope);
-                } catch (e) {
-                    emitAssertResult('error', desc, e.toString().replace("AssertionError", "断言校验失败"), scope);
-                }
-            }
-        })
-
-        // assert
-        Object.defineProperty(pm, 'assert', {
-            configurable: true,
-            value: function (assert) {
-                try {
-                    let _response = _.cloneDeep(pm.response);
-
-                    if (_.isFunction(_response.json)) {
-                        _response.json = _response.json();
-                    }
-                    chai.assert.isTrue(new Function("response", "request", `return ${String(assert)}`)(_response, _.cloneDeep(pm.request)))
-                    emitAssertResult('success', String(assert), '成功', scope);
-                } catch (e) {
-                    emitAssertResult('error', String(assert), e.toString().replace("AssertionError", "断言校验失败").replace('expected false to be true', '表达式不成立'), scope);
-                }
-            }
-        })
-
-        // 发送方法
-        Object.defineProperty(pm, 'sendRequest', {
-            configurable: true,
-            value: new apipostRequest()
-        })
-
-        // 可视化
-        Object.defineProperty(pm, 'visualizer', {
-            configurable: true,
-            value: {
-                set: (template, data) => {
-                    try {
-                        let html = artTemplate.render(template, data);
-                        emitVisualizerHtml('success', html, scope);
-                    } catch (e) {
-                        emitVisualizerHtml('error', e.toString(), scope);
-                    }
-                }
-            }
-        });
-
-        Object.defineProperty(pm, 'Visualizing', {
-            configurable: true,
-            value: (template, data) => {
-                try {
-                    let html = artTemplate.render(template, data);
-                    emitVisualizerHtml('success', html, scope);
-                } catch (e) {
-                    emitVisualizerHtml('error', e.toString(), scope);
-                }
-            }
-        });
-
-        Object.defineProperty(pm, 'getData', { // 此方法为兼容 postman ，由于流程差异，暂时不支持
-            configurable: true,
-            value: function (callback) {
-                // @todo
-            }
-        });
-
-        // 跳过下面的流程直接到执行指定接口
-        Object.defineProperty(pm, 'setNextRequest', { // 此方法为兼容 postman ，由于流程差异，暂时不支持
-            configurable: true,
-            value: function (target_id) {
-                // @todo
-            }
-        });
-
-        // 执行
-        try {
-            $.md5 = function (str) { // 兼容旧版
-                return CryptoJS.MD5(str).toString()
-            };
-
-            (new vm2.VM({
-                timeout: 1000,
-                sandbox: {
-                    ...{ pm },
-                    ...{ chai },
-                    ...{ emitAssertResult },
-                    // ...{ atob },
-                    // ...{ btoa },
-                    ...{ JSON5 },
-                    ...{ _ },
-                    ...{ Mock },
-                    ...{ uuid },
-                    ...{ jsonpath },
-                    ...{ CryptoJS },
-                    // ...{ navigator?navigator:{} },
-                    ...{ $ },
-                    ...{ x2js },
-                    // ...{ JSEncrypt?JSEncrypt:{} },
-                    ...{ moment },
-                    ...{ dayjs },
-                    console: consoleFn,
-                    xml2json: function (xml) {
-                        return (new x2js()).xml2js(xml)
-                    },
-                    uuidv4: function () {
-                        return uuid.v4()
-                    },
-                    apt: pm,
-                    request: pm.request ? _.cloneDeep(pm.request) : {},
-                    response: pm.response ? _.assign(_.cloneDeep(pm.response), { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
-                    expect: chai.expect,
-                    sleep: function (ms) {
-                        let end = Date.now() + parseInt(ms)
-                        while (true) {
-                            if (Date.now() > end) {
-                                return;
-                            }
-                        }
-                    }
-                }
-            })).run(new vm2.VMScript(code));
-            typeof callback === 'function' && callback();
-        } catch (err) {
-            emitTargetPara({
-                action: "SCRIPT_ERROR",
-                eventName: eventName,
-                data: `${eventName == 'pre_script' ? '预执行' : '后执行'}脚本语法错误: ${err.toString()}`
-            }, scope);
-            typeof callback === 'function' && callback(err.toString());
-        }
-    }
-
-    _.assign(this, {
-        ...{ execute },
-        ...{ getAllInsideVariables },
-        ...{ getAllDynamicVariables },
-        ...{ dynamicVariables },
-        ...{ variablesScope },
-        ...{ replaceIn }
-    })
 }
 
 const Collection = function ApipostCollection(definition, option = { iterationCount: 1, sleep: 0 }) {
@@ -772,8 +87,686 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
     })
 }
 
-const Runtime = function ApipostRuntime() {
-    const sandbox = new Sandbox();
+const Runtime = function ApipostRuntime(emitRuntimeEvent) {
+    // 当前流程总错误计数器
+    let RUNNER_TOTAL_COUNT = 0; // 需要跑的总event分母
+    let RUNNER_RUNTIME_POINTER = 0; // 需要跑的总event分子
+    let RUNNER_REPORT_ID = '';
+    let RUNNER_ERROR_COUNT = 0;
+    let RUNNER_PROGRESS = 0;
+    let RUNNER_RESULT_LOG = {};
+    let RUNNER_STOP = 0;
+
+    if (typeof emitRuntimeEvent != 'function') {
+        emitRuntimeEvent = function () { }
+    }
+
+    // Apipost 沙盒
+    const Sandbox = function ApipostSandbox() {
+        // 内置变量
+        const insideVariablesScope = {
+            list: {} // 常量
+        }
+
+        new Array('natural', 'integer', 'float', 'character', 'range', 'date', 'time', 'datetime', 'now', 'guid', 'integeincrementr', 'url', 'protocol', 'domain', 'tld', 'email', 'ip', 'region', 'province', 'city', 'county', 'county', 'zip', 'first', 'last', 'name', 'cfirst', 'clast', 'cname', 'color', 'rgb', 'rgba', 'hsl', 'paragraph', 'cparagraph', 'sentence', 'csentence', 'word', 'cword', 'title', 'ctitle').forEach(func => {
+            insideVariablesScope.list[`$${func}`] = Mock.mock(`@${func}`);
+        })
+
+        new Array('phone', 'mobile', 'telephone').forEach(func => {
+            insideVariablesScope.list[`$${func}`] = ['131', '132', '137', '188'][_.random(0, 3)] + Mock.mock(/\d{8}/)
+        })
+
+        // 动态变量
+        const variablesScope = {
+            "globals": {}, // 公共变量
+            "environment": {}, // 环境变量
+            "collectionVariables": {}, // 目录变量 当前版本不支持，目前为兼容postman
+            "variables": {}, // 临时变量，无需存库
+            "iterationData": {}, // 流程测试时的数据变量，临时变量，无需存库
+        }
+
+        // 获取所有动态变量
+        function getAllDynamicVariables(type) {
+            if (typeof aptScripts === 'object') {
+                Object.keys(variablesScope).forEach(key => {
+                    if (_.isObject(aptScripts[key]) && _.isFunction(aptScripts[key].toObject) && ['iterationData', 'variables'].indexOf(key) > -1) {
+                        _.assign(variablesScope[key], aptScripts[key].toObject())
+                    }
+                })
+            }
+
+            if (variablesScope.hasOwnProperty(type)) {
+                return _.isPlainObject(variablesScope[type]) ? variablesScope[type] : {};
+            } else {
+                let allVariables = {};
+                Object.keys(variablesScope).forEach(type => {
+                    _.assign(allVariables, variablesScope[type])
+                })
+                return allVariables;
+            }
+        }
+
+        // 设置动态变量
+        const dynamicVariables = {};
+
+        // 变量相关
+        // ['variables'] 临时变量
+        Object.defineProperty(dynamicVariables, 'variables', {
+            configurable: true,
+            value: {
+                set(key, value) {
+                    variablesScope['variables'][key] = value;
+                },
+                get(key) {
+                    let allVariables = getAllDynamicVariables();
+                    return allVariables[key];
+                },
+                has(key) {
+                    return getAllDynamicVariables().hasOwnProperty(key);
+                },
+                delete(key) {
+                    delete variablesScope['variables'][key];
+                },
+                unset(key) {
+                    delete variablesScope['variables'][key];
+                },
+                clear() {
+                    variablesScope['variables'] = {};
+                },
+                replaceIn(variablesStr) {
+                    return replaceIn(variablesStr);
+                },
+                toObject() {
+                    return getAllDynamicVariables()
+                }
+            }
+        })
+
+        // ['iterationData'] 临时变量
+        Object.defineProperty(dynamicVariables, 'iterationData', {
+            configurable: true,
+            value: {
+                set(key, value) {
+                    variablesScope['iterationData'][key] = value;
+                },
+                get(key) {
+                    return variablesScope['iterationData'][key];
+                },
+                has(key) {
+                    return variablesScope['iterationData'].hasOwnProperty(key);
+                },
+                replaceIn(variablesStr) {
+                    return replaceIn(variablesStr, 'iterationData');
+                },
+                toObject() {
+                    return variablesScope['iterationData']
+                }
+            }
+        })
+
+        // ['globals', 'environment', 'collectionVariables']
+        Object.keys(variablesScope).forEach(type => {
+            if (['iterationData', 'variables'].indexOf(type) === -1) {
+                Object.defineProperty(dynamicVariables, type, {
+                    configurable: true,
+                    value: {
+                        set(key, value, emitdb = true) {
+                            variablesScope[type][key] = value;
+
+                            if (emitdb) {
+                                typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].set) && aptScripts[type].set(key, value)
+                            }
+                        },
+                        get(key) {
+                            return variablesScope[type][key];
+                        },
+                        has(key) {
+                            return variablesScope[type].hasOwnProperty(key);
+                        },
+                        delete(key) {
+                            delete variablesScope[type][key];
+                            typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].delete) && aptScripts[type].delete(key)
+                        },
+                        unset(key) {
+                            delete variablesScope[type][key];
+                            typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].delete) && aptScripts[type].delete(key)
+                        },
+                        clear() {
+                            variablesScope[type] = {};
+                            typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].clear) && aptScripts[type].clear()
+                        },
+                        replaceIn(variablesStr) {
+                            return replaceIn(variablesStr, type);
+                        },
+                        toObject() {
+                            return variablesScope[type]
+                        }
+                    }
+                });
+            }
+        })
+
+        // 获取所有内置变量
+        function getAllInsideVariables() {
+            return _.cloneDeep(insideVariablesScope.list);
+        }
+
+        // 变量替换
+        function replaceIn(variablesStr, type, withMock = false) {
+            let allVariables = getAllInsideVariables();
+            _.assign(allVariables, getAllDynamicVariables(type))
+
+            if (withMock) {
+                variablesStr = Mock.mock(variablesStr);
+            }
+
+            // 替换自定义变量
+            let _regExp = new RegExp(Object.keys(allVariables).map(function (item) {
+                if (_.startsWith(item, '$')) {
+                    item = `\\${item}`
+                }
+                return '{{' + item + '}}'
+            }).join("|"), "gi");
+
+            variablesStr = _.replace(variablesStr, _regExp, function (key) {
+                let reStr = allVariables[_.replace(key, /[{}]/gi, '')];
+                return reStr ? reStr : key;
+            });
+
+            allVariables = null;
+            return variablesStr;
+        }
+
+        // 发送断言结果
+        function emitAssertResult(status, expect, result, scope) {
+            if (typeof scope != 'undefined' && _.isObject(scope) && _.isArray(scope.assert)) {
+                // 更新日志
+                let item = RUNNER_RESULT_LOG[scope.iteration_id];
+
+                if (item) {
+                    if (!_.isArray(item.assert)) {
+                        item.assert = [];
+                    }
+
+                    item.assert.push({
+                        status: status,
+                        expect: expect,
+                        result: result
+                    });
+
+                    if (status === 'success') {
+                        cliConsole(`\t✓`.green, ` ${expect} 匹配`.grey)
+                    } else {
+                        RUNNER_ERROR_COUNT++;
+                        cliConsole(`\t${RUNNER_ERROR_COUNT}. ${expect} ${result}`.bold.red);
+                    }
+                }
+            }
+        }
+
+        // 设置响应和请求参数
+        function emitTargetPara(data, scope) {
+            if (typeof scope != 'undefined' && _.isObject(scope)) {
+                // 更新日志
+                let item = RUNNER_RESULT_LOG[scope.iteration_id];
+
+                if (item) {
+                    switch (data.action) {
+                        case 'SCRIPT_ERROR':
+                            if (item.type == 'api') {
+                                _.set(item, `script_error.${data.eventName}`, data.data)
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+
+        // 发送可视化结果
+        function emitVisualizerHtml(status, html, scope) {
+            if (typeof scope != 'undefined' && _.isObject(scope)) {
+                let item = RUNNER_RESULT_LOG[scope.iteration_id];
+
+                if (item) {
+                    item.visualizer_html = { status, html }
+                }
+            }
+        }
+
+        // console
+        const consoleFn = {};
+        new Array("log", "warn", "info", "error").forEach(method => {
+            Object.defineProperty(consoleFn, method, {
+                configurable: true,
+                value: function () {
+                    emitRuntimeEvent({
+                        action: 'console',
+                        method: method,
+                        message: {
+                            type: 'log',
+                            data: Array.from(arguments)
+                        },
+                        timestamp: Date.now(),
+                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                    })
+                }
+            });
+        })
+
+        // 断言自定义拓展规则（100% 兼容postman）
+        chai.use(function () {
+            require('chai-apipost')(chai);
+        });
+
+        // 执行脚本
+        /**
+             * code js 代码（当前仅支持 js 代码，后续支持多种语言，如 python 等）
+             * scope 当前变量环境对象，里面包含
+             * {
+            //  *      variables   临时变量 此数据为临时数据，无需存库
+             *      globals     公共变量
+             *      environment     环境变量
+             *      collectionVariables     目录变量
+            //  *      iterationData   流程测试时的数据变量 此数据为临时数据，无需存库
+             *      request     请求参数
+             *      response    响应参数
+             *      cookie      cookie
+             *      info        请求运行相关信息
+             * }
+             * 
+             * callback 回调
+         * */
+        function execute(code, scope, eventName, callback) {
+            scope = _.isPlainObject(scope) ? _.cloneDeep(scope) : {};
+
+            // 初始化数据库中的当前变量值 init
+            if (typeof aptScripts === 'object') {
+                Object.keys(variablesScope).forEach(key => {
+                    if (_.isObject(aptScripts[key]) && _.isFunction(aptScripts[key].toObject) && ['iterationData', 'variables'].indexOf(key) > -1) {
+                        _.assign(variablesScope[key], aptScripts[key].toObject())
+                    }
+                })
+            }
+
+            // pm 对象
+            const pm = {};
+
+            // info, 请求、响应、cookie, iterationData
+            new Array('info', 'request', 'response', 'cookie', 'iterationData').forEach(key => {
+                if (_.indexOf(['request', 'response'], key) > -1) {
+                    switch (key) {
+                        case 'request':
+                            if (_.has(scope, `response.data.${key}`) && _.isObject(scope.response.data[key])) {
+                                Object.defineProperty(scope.response.data[key], 'to', {
+                                    get() {
+                                        return chai.expect(this).to;
+                                    }
+                                });
+
+                                Object.defineProperty(pm, key, {
+                                    configurable: true,
+                                    value: scope.response.data[key]
+                                });
+                            }
+                            break;
+                        case 'response':
+                            if (_.has(scope, `response.data.${key}`) && _.isObject(scope.response.data[key])) {
+                                if (scope.response.data[key].hasOwnProperty('rawBody')) {
+                                    let json = {};
+
+                                    try {
+                                        json = JSON5.parse(scope.response.data[key].rawBody);
+                                    } catch (e) { }
+
+                                    Object.defineProperty(scope.response.data[key], 'json', {
+                                        configurable: true,
+                                        value: function () {
+                                            return _.cloneDeep(json);
+                                        }
+                                    });
+
+                                    Object.defineProperty(scope.response.data[key], 'text', {
+                                        configurable: true,
+                                        value: function () {
+                                            return scope.response.data[key].rawBody;
+                                        }
+                                    });
+                                }
+
+                                Object.defineProperty(scope.response.data[key], 'to', {
+                                    get() {
+                                        return chai.expect(this).to;
+                                    }
+                                });
+
+                                Object.defineProperty(pm, key, {
+                                    configurable: true,
+                                    value: scope.response.data[key]
+                                });
+                            }
+                            break;
+                    }
+                } else {
+                    if (_.isObject(scope[key])) {
+                        switch (key) {
+                            case 'iterationData':
+                                _.assign(variablesScope['iterationData'], scope[key]);
+                                break;
+                            case 'info':
+                                _.assign(scope[key], {
+                                    iteration: scope.iteration,
+                                    iterationCount: scope.iterationCount,
+                                    eventName: eventName,
+                                })
+                                break;
+                        }
+
+                        Object.defineProperty(pm, key, {
+                            configurable: true,
+                            value: scope[key]
+                        });
+                    }
+                }
+            })
+
+            // 变量相关
+            Object.keys(variablesScope).forEach(type => {
+                Object.defineProperty(pm, type, {
+                    configurable: true,
+                    value: dynamicVariables[type]
+                });
+            })
+
+            if (_.isObject(pm.variables)) {
+                Object.defineProperty(pm.variables, 'getName', {
+                    configurable: true,
+                    value: function () {
+                        return scope.env_name
+                    }
+                });
+
+                Object.defineProperty(pm.variables, 'getPreUrl', {
+                    configurable: true,
+                    value: function () {
+                        return scope.env_pre_url
+                    }
+                });
+
+                Object.defineProperty(pm.variables, 'getCollection', {
+                    configurable: true,
+                    value: function () {
+                        return scope.environment
+                    }
+                });
+            }
+
+            // 请求参数相关
+            if (typeof scope != 'undefined' && _.isObject(scope) && _.has(scope, 'request.request')) {
+                // 更新日志
+                let item = RUNNER_RESULT_LOG[scope.iteration_id];
+
+                if (item) {
+                    Object.defineProperty(pm, 'setRequestQuery', {
+                        configurable: true,
+                        value: function (key, value) {
+                            if (_.trim(key) != '') {
+                                if (!_.has(item, 'beforeRequest.query')) {
+                                    _.set(item, `beforeRequest.query`, []);
+
+                                }
+
+                                item.beforeRequest.query.push({
+                                    action: 'set',
+                                    key: key,
+                                    value: value
+                                });
+                            }
+                        }
+                    });
+
+                    Object.defineProperty(pm, 'removeRequestQuery', {
+                        configurable: true,
+                        value: function (key) {
+                            if (_.trim(key) != '') {
+                                if (!_.has(item, 'beforeRequest.query')) {
+                                    _.set(item, `beforeRequest.query`, []);
+
+                                }
+
+                                item.beforeRequest.query.push({
+                                    action: 'remove',
+                                    key: key
+                                });
+                            }
+                        }
+                    });
+
+                    Object.defineProperty(pm, 'setRequestHeader', {
+                        configurable: true,
+                        value: function (key, value) {
+                            if (_.trim(key) != '') {
+                                if (!_.has(item, 'beforeRequest.header')) {
+                                    _.set(item, `beforeRequest.header`, []);
+
+                                }
+
+                                item.beforeRequest.header.push({
+                                    action: 'set',
+                                    key: key,
+                                    value: value
+                                });
+                            }
+                        }
+                    });
+
+                    Object.defineProperty(pm, 'removeRequestHeader', {
+                        configurable: true,
+                        value: function (key) {
+                            if (_.trim(key) != '') {
+                                if (!_.has(item, 'beforeRequest.header')) {
+                                    _.set(item, `beforeRequest.header`, []);
+
+                                }
+
+                                item.beforeRequest.header.push({
+                                    action: 'remove',
+                                    key: key
+                                });
+                            }
+                        }
+                    });
+
+                    Object.defineProperty(pm, 'setRequestBody', {
+                        configurable: true,
+                        value: function (key, value) {
+                            if (_.trim(key) != '') {
+                                if (!_.has(item, 'beforeRequest.body')) {
+                                    _.set(item, `beforeRequest.body`, []);
+
+                                }
+
+                                item.beforeRequest.body.push({
+                                    action: 'set',
+                                    key: key,
+                                    value: value
+                                });
+                            }
+                        }
+                    });
+
+                    Object.defineProperty(pm, 'removeRequestBody', {
+                        configurable: true,
+                        value: function (key) {
+                            if (_.trim(key) != '') {
+                                if (!_.has(item, 'beforeRequest.body')) {
+                                    _.set(item, `beforeRequest.body`, []);
+
+                                }
+
+                                item.beforeRequest.body.push({
+                                    action: 'remove',
+                                    key: key
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+
+            // expert
+            Object.defineProperty(pm, 'expect', {
+                configurable: true,
+                value: chai.expect
+            })
+
+            // test
+            Object.defineProperty(pm, 'test', {
+                configurable: true,
+                value: function (desc, callback) {
+                    try {
+                        callback();
+                        emitAssertResult('success', desc, '成功', scope);
+                    } catch (e) {
+                        emitAssertResult('error', desc, e.toString().replace("AssertionError", "断言校验失败"), scope);
+                    }
+                }
+            })
+
+            // assert
+            Object.defineProperty(pm, 'assert', {
+                configurable: true,
+                value: function (assert) {
+                    try {
+                        let _response = _.cloneDeep(pm.response);
+
+                        if (_.isFunction(_response.json)) {
+                            _response.json = _response.json();
+                        }
+                        chai.assert.isTrue(new Function("response", "request", `return ${String(assert)}`)(_response, _.cloneDeep(pm.request)))
+                        emitAssertResult('success', String(assert), '成功', scope);
+                    } catch (e) {
+                        emitAssertResult('error', String(assert), e.toString().replace("AssertionError", "断言校验失败").replace('expected false to be true', '表达式不成立'), scope);
+                    }
+                }
+            })
+
+            // 发送方法
+            Object.defineProperty(pm, 'sendRequest', {
+                configurable: true,
+                value: new apipostRequest()
+            })
+
+            // 可视化
+            Object.defineProperty(pm, 'visualizer', {
+                configurable: true,
+                value: {
+                    set: (template, data) => {
+                        try {
+                            let html = artTemplate.render(template, data);
+                            emitVisualizerHtml('success', html, scope);
+                        } catch (e) {
+                            emitVisualizerHtml('error', e.toString(), scope);
+                        }
+                    }
+                }
+            });
+
+            Object.defineProperty(pm, 'Visualizing', {
+                configurable: true,
+                value: (template, data) => {
+                    try {
+                        let html = artTemplate.render(template, data);
+                        emitVisualizerHtml('success', html, scope);
+                    } catch (e) {
+                        emitVisualizerHtml('error', e.toString(), scope);
+                    }
+                }
+            });
+
+            Object.defineProperty(pm, 'getData', { // 此方法为兼容 postman ，由于流程差异，暂时不支持
+                configurable: true,
+                value: function (callback) {
+                    // @todo
+                }
+            });
+
+            // 跳过下面的流程直接到执行指定接口
+            Object.defineProperty(pm, 'setNextRequest', { // 此方法为兼容 postman ，由于流程差异，暂时不支持
+                configurable: true,
+                value: function (target_id) {
+                    // @todo
+                }
+            });
+
+            // 执行
+            try {
+                $.md5 = function (str) { // 兼容旧版
+                    return CryptoJS.MD5(str).toString()
+                };
+
+                (new vm2.VM({
+                    timeout: 1000,
+                    mySandbox: {
+                        ...{ pm },
+                        ...{ chai },
+                        ...{ emitAssertResult },
+                        // ...{ atob },
+                        // ...{ btoa },
+                        ...{ JSON5 },
+                        ...{ _ },
+                        ...{ Mock },
+                        ...{ uuid },
+                        ...{ jsonpath },
+                        ...{ CryptoJS },
+                        // ...{ navigator?navigator:{} },
+                        ...{ $ },
+                        ...{ x2js },
+                        // ...{ JSEncrypt?JSEncrypt:{} },
+                        ...{ moment },
+                        ...{ dayjs },
+                        console: consoleFn,
+                        xml2json: function (xml) {
+                            return (new x2js()).xml2js(xml)
+                        },
+                        uuidv4: function () {
+                            return uuid.v4()
+                        },
+                        apt: pm,
+                        request: pm.request ? _.cloneDeep(pm.request) : {},
+                        response: pm.response ? _.assign(_.cloneDeep(pm.response), { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
+                        expect: chai.expect,
+                        sleep: function (ms) {
+                            let end = Date.now() + parseInt(ms)
+                            while (true) {
+                                if (Date.now() > end) {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                })).run(new vm2.VMScript(code));
+                typeof callback === 'function' && callback();
+            } catch (err) {
+                emitTargetPara({
+                    action: "SCRIPT_ERROR",
+                    eventName: eventName,
+                    data: `${eventName == 'pre_script' ? '预执行' : '后执行'}脚本语法错误: ${err.toString()}`
+                }, scope);
+                typeof callback === 'function' && callback(err.toString());
+            }
+        }
+
+        _.assign(this, {
+            ...{ execute },
+            ...{ getAllInsideVariables },
+            ...{ getAllDynamicVariables },
+            ...{ dynamicVariables },
+            ...{ variablesScope },
+            ...{ replaceIn }
+        })
+    }
+
+    const mySandbox = new Sandbox();
 
     // sleep 延迟方法
     function sleepDelay(ms) {
@@ -831,7 +824,7 @@ const Runtime = function ApipostRuntime() {
 
             if (item) {
                 parent_ids.push(item.parent_id)
-                getParentTargetIDs(collection, item.parent_id, parent_ids)
+                getParentTargetIDs(collection, item.parent_id, parent_ids);
             }
         }
 
@@ -907,7 +900,7 @@ const Runtime = function ApipostRuntime() {
         let assertErrorCount = 0;
         let eventResultStatus = {};
 
-        log.forEach(item => {
+        Object.values(log).forEach(item => {
             if (item.http_error == -1 && _.find(item.assert, _.matchesProperty('status', "error"))) {
                 assertErrorCount++;
             }
@@ -1017,22 +1010,15 @@ const Runtime = function ApipostRuntime() {
         return report;
     }
 
-    let totalRuntimeCount = 0; // 需要跑的总event分母
-    let runtimeCountPointer = 0; // 需要跑的总event分子
-    let startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
-    let startTimeStamp = Date.now(); // 开始时间戳
-    let initDefinitions = []; // 原始colletion
-    let reportId = '';
-
     // 参数初始化
     function runInit() {
-        reportId = uuid.v4(); // 测试事件的ID
+        RUNNER_REPORT_ID = uuid.v4(); // 测试事件的ID
         RUNNER_ERROR_COUNT = 0;
-        // totalRuntimeCount = 0
-        runtimeCountPointer = 0; // 需要跑的总event分子
+        // RUNNER_TOTAL_COUNT = 0
+        RUNNER_RUNTIME_POINTER = 0; // 需要跑的总event分子
         startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
         startTimeStamp = Date.now(); // 开始时间戳
-        RUNNER_RESULT_LOG = [];
+        RUNNER_RESULT_LOG = {};
     }
 
     // 停止 run
@@ -1040,15 +1026,20 @@ const Runtime = function ApipostRuntime() {
         RUNNER_STOP = 1;
     }
 
+    let startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
+    let startTimeStamp = Date.now(); // 开始时间戳
+    let initDefinitions = []; // 原始colletion
+
+    // start run
     async function run(definitions, option = {}, initFlag = 0) {
         if (initFlag == 0) { // 初始化参数
-            if (RUNNER_RESULT_LOG.length > 0) { // 当前有任务时，拒绝新任务
+            if (_.size(RUNNER_RESULT_LOG) > 0) { // 当前有任务时，拒绝新任务
                 return;
             }
 
             runInit();
             RUNNER_STOP = 0;
-            totalRuntimeCount = definitions[0].condition.limit * definitions[0].children.length;
+            RUNNER_TOTAL_COUNT = definitions[0].condition.limit * definitions[0].children.length;
             initDefinitions = definitions;
         } else {
             if (RUNNER_STOP > 0) {
@@ -1108,9 +1099,9 @@ const Runtime = function ApipostRuntime() {
 
         // 设置sandbox的 environment变量 和 globals 变量
         new Array('environment', 'globals').forEach(func => {
-            if (_.isObject(option[func]) && _.isObject(sandbox.dynamicVariables[func]) && _.isFunction(sandbox.dynamicVariables[func].set)) {
+            if (_.isObject(option[func]) && _.isObject(mySandbox.dynamicVariables[func]) && _.isFunction(mySandbox.dynamicVariables[func].set)) {
                 for (const [key, value] of Object.entries(option[func])) {
-                    sandbox.dynamicVariables[func].set(key, value, false)
+                    mySandbox.dynamicVariables[func].set(key, value, false)
                 }
             }
         })
@@ -1138,7 +1129,7 @@ const Runtime = function ApipostRuntime() {
 
                 if (_.isObject(definition.iterationData)) {
                     for (const [key, value] of Object.entries(definition.iterationData)) {
-                        sandbox.dynamicVariables['iterationData'].set(key, value, false)
+                        mySandbox.dynamicVariables['iterationData'].set(key, value, false)
                     }
                 }
 
@@ -1154,11 +1145,11 @@ const Runtime = function ApipostRuntime() {
                         case 'script':
                         case 'assert':
                             if (_.has(definition, 'data.content') && _.isString(definition.data.content)) {
-                                sandbox.execute(definition.data.content, definition, 'test', function (err, res) { })
+                                mySandbox.execute(definition.data.content, definition, 'test', function (err, res) { })
                             }
                             break;
                         case 'if':
-                            if (returnBoolean(sandbox.replaceIn(definition.condition.var), definition.condition.compare, sandbox.replaceIn(definition.condition.value))) {
+                            if (returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value))) {
                                 await run(definition.children, option, 1);
                             }
                             break;
@@ -1176,6 +1167,8 @@ const Runtime = function ApipostRuntime() {
                                         url: definition.request.url ? definition.request.url : _requestBody.request.url,
                                         request: _requestBody.request
                                     })
+
+                                    _requestBody = null;
                                 }
 
                                 new Array('header', 'body', 'query', 'auth', 'pre_script', 'test').forEach(_type => {
@@ -1290,9 +1283,9 @@ const Runtime = function ApipostRuntime() {
                                     }
                                 })
 
-                                RUNNER_RESULT_LOG.push({
+                                RUNNER_RESULT_LOG[definition.iteration_id] = {
                                     test_id: definition.test_id,
-                                    report_id: reportId,
+                                    report_id: RUNNER_REPORT_ID,
                                     parent_id: definition.parent_id,
                                     event_id: definition.event_id,
                                     iteration_id: definition.iteration_id,
@@ -1303,11 +1296,11 @@ const Runtime = function ApipostRuntime() {
                                     http_error: -1,
                                     assert: [],
                                     datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                                });
+                                }
 
                                 // 执行预执行脚本
                                 if (_.has(_requestPara, 'pre_script') && _.isString(_requestPara.pre_script)) {
-                                    sandbox.execute(_requestPara.pre_script, definition, 'pre_script', function (err, res) { })
+                                    mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', function (err, res) { })
                                 }
 
                                 let _request = _.cloneDeep(definition.request);
@@ -1317,8 +1310,8 @@ const Runtime = function ApipostRuntime() {
                                     _requestPara[type] = _.values(_requestPara[type])
                                     _requestPara[type].map(item => {
                                         _.assign(item, {
-                                            key: sandbox.replaceIn(item.key),
-                                            value: sandbox.replaceIn(item.value),
+                                            key: mySandbox.replaceIn(item.key),
+                                            value: mySandbox.replaceIn(item.value),
                                         })
                                     })
 
@@ -1326,30 +1319,30 @@ const Runtime = function ApipostRuntime() {
                                 })
 
                                 // 重新渲染请求参数
-                                let _target = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', definition.iteration_id));
+                                let _target = RUNNER_RESULT_LOG[definition.iteration_id];
 
                                 if (typeof _target == 'object' && _.isObject(_target.beforeRequest)) {
                                     new Array("query", "header", "body").forEach(type => {
                                         if (_.has(_request, `request.${type}.parameter`) && _.isArray(_target.beforeRequest[type])) {
                                             _target.beforeRequest[type].forEach(_item => {
                                                 if (_item.action == "set") {
-                                                    let _itemPara = _.find(_request.request[type].parameter, _.matchesProperty('key', sandbox.replaceIn(_item.key)))
+                                                    let _itemPara = _.find(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key)))
 
                                                     if (_itemPara) {
-                                                        _itemPara.value = sandbox.replaceIn(_item.value);
+                                                        _itemPara.value = mySandbox.replaceIn(_item.value);
                                                     } else {
                                                         _request.request[type].parameter.push({
                                                             description: "",
                                                             field_type: "Text",
                                                             is_checked: "1",
-                                                            key: sandbox.replaceIn(_item.key),
+                                                            key: mySandbox.replaceIn(_item.key),
                                                             not_null: "1",
                                                             type: "Text",
-                                                            value: sandbox.replaceIn(_item.value)
+                                                            value: mySandbox.replaceIn(_item.value)
                                                         });
                                                     }
                                                 } else if (_item.action == "remove") {
-                                                    _.remove(_request.request[type].parameter, _.matchesProperty('key', sandbox.replaceIn(_item.key)));
+                                                    _.remove(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key)));
                                                 }
                                             })
                                         }
@@ -1366,9 +1359,9 @@ const Runtime = function ApipostRuntime() {
                                             if (_rawParse) {
                                                 _target.beforeRequest[type].forEach(_item => {
                                                     if (_item.action == "set") {
-                                                        _.set(_rawParse, sandbox.replaceIn(_item.key), sandbox.replaceIn(_item.value));
+                                                        _.set(_rawParse, mySandbox.replaceIn(_item.key), mySandbox.replaceIn(_item.value));
                                                     } else if (_item.action == "remove") {
-                                                        _.unset(_rawParse, sandbox.replaceIn(_item.key));
+                                                        _.unset(_rawParse, mySandbox.replaceIn(_item.key));
                                                     }
                                                 })
 
@@ -1380,7 +1373,7 @@ const Runtime = function ApipostRuntime() {
 
                                 if (_.isObject(_requestPara['auth'][_requestPara['auth'].type])) {
                                     _requestPara['auth'][_requestPara['auth'].type] = _.mapValues(_requestPara['auth'][_requestPara['auth'].type], function (val) {
-                                        return sandbox.replaceIn(val);
+                                        return mySandbox.replaceIn(val);
                                     })
 
                                     _.set(_request, `request.auth.${_requestPara['auth'].type}`, _requestPara['auth'][_requestPara['auth'].type]);
@@ -1388,9 +1381,11 @@ const Runtime = function ApipostRuntime() {
 
                                 // url 兼容
                                 let _url = _request.url ? _request.url : _request.request.url;
-                                _url = sandbox.replaceIn(_url);
+                                _url = mySandbox.replaceIn(_url);
 
-                                _url = aTools.completionHttpProtocol(_url);
+                                if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
+                                    _url = `http://${_url}`;
+                                }
 
                                 _.set(_request, 'url', _url);
                                 _.set(_request, 'request.url', _url)
@@ -1470,7 +1465,7 @@ const Runtime = function ApipostRuntime() {
 
                                 // 执行后执行脚本
                                 if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
-                                    sandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) { })
+                                    mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) { })
                                 }
 
                                 _requestPara = _request = _response = res = _parent_ids = _target = null;
@@ -1478,7 +1473,7 @@ const Runtime = function ApipostRuntime() {
                             break;
                         case 'for':
                             if (_.isArray(definition.children) && definition.children.length > 0) {
-                                for (let i = 0; i < sandbox.replaceIn(definition.condition.limit); i++) {
+                                for (let i = 0; i < mySandbox.replaceIn(definition.condition.limit); i++) {
                                     await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), 1)
                                 }
                             }
@@ -1487,7 +1482,7 @@ const Runtime = function ApipostRuntime() {
                             if (_.isArray(definition.children) && definition.children.length > 0) {
                                 let end = Date.now() + parseInt(definition.condition.timeout);
 
-                                while ((returnBoolean(sandbox.replaceIn(definition.condition.var), definition.condition.compare, sandbox.replaceIn(definition.condition.value)))) {
+                                while ((returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value)))) {
                                     if (Date.now() > end) {
                                         break;
                                     }
@@ -1515,8 +1510,8 @@ const Runtime = function ApipostRuntime() {
 
                     // 进度条
                     if (initFlag == 1) {
-                        runtimeCountPointer++;
-                        RUNNER_PROGRESS = _.floor(_.divide(runtimeCountPointer, totalRuntimeCount), 2);
+                        RUNNER_RUNTIME_POINTER++;
+                        RUNNER_PROGRESS = _.floor(_.divide(RUNNER_RUNTIME_POINTER, RUNNER_TOTAL_COUNT), 2);
 
                         if (scene == 'auto_test') {
                             emitRuntimeEvent({
@@ -1534,12 +1529,14 @@ const Runtime = function ApipostRuntime() {
                                 (function getIgnoreAllApis(initDefinitions) {
                                     initDefinitions.forEach(item => {
                                         if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
-                                            RUNNER_RESULT_LOG.push({
+                                            let _iteration_id = uuid.v4();
+
+                                            RUNNER_RESULT_LOG[_iteration_id] = {
                                                 test_id: item.test_id,
-                                                report_id: reportId,
+                                                report_id: RUNNER_REPORT_ID,
                                                 parent_id: item.parent_id,
                                                 event_id: item.event_id,
-                                                iteration_id: uuid.v4(),
+                                                iteration_id: _iteration_id,
                                                 type: item.type,
                                                 target_id: item.target_id,
                                                 request: item.request,
@@ -1547,7 +1544,7 @@ const Runtime = function ApipostRuntime() {
                                                 http_error: -2,
                                                 assert: [],
                                                 datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                                            })
+                                            }
                                         }
 
                                         if (_.isArray(item.children)) {
@@ -1560,19 +1557,19 @@ const Runtime = function ApipostRuntime() {
                                     action: "complate",
                                     combined_id: combined_id,
                                     envs: {
-                                        globals: sandbox.variablesScope.globals,
-                                        environment: sandbox.variablesScope.environment
+                                        globals: mySandbox.variablesScope.globals,
+                                        environment: mySandbox.variablesScope.environment
                                     },
-                                    test_report: calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, reportId, { combined_id, test_events, default_report_name, user, env_name })
+                                    test_report: calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name })
                                 })
                             } else {
-                                let _http = _.find(RUNNER_RESULT_LOG, _.matchesProperty('iteration_id', definition.iteration_id));
+                                let _http = RUNNER_RESULT_LOG[definition.iteration_id];
 
                                 emitRuntimeEvent({
                                     action: 'http_complate',
                                     envs: {
-                                        globals: sandbox.variablesScope.globals,
-                                        environment: sandbox.variablesScope.environment
+                                        globals: mySandbox.variablesScope.globals,
+                                        environment: mySandbox.variablesScope.environment
                                     },
                                     data: {
                                         assert: _http.assert,
@@ -1585,7 +1582,7 @@ const Runtime = function ApipostRuntime() {
                             }
 
                             runInit();
-                            initDefinitions = [];
+                            RUNNER_RESULT_LOG = initDefinitions = null;
                         }
                     }
                 }
