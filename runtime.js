@@ -43,9 +43,7 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
         cookie: [], // 响应cookie ，仅适用于 api或者request
         assert: []
     };
-
-    let RUNNER_TOTAL_COUNT = 0;
-
+    
     (function createRuntimeList(r, parent_id = '0') {
         if (r instanceof Array && r.length > 0) {
             r.forEach(item => {
@@ -65,10 +63,6 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
                         requestId: item.data.target_id,
                     } : {},
                 })
-
-                if ((item.type == 'api' || item.type == 'request') && item.enabled > 0) {
-                    RUNNER_TOTAL_COUNT++;
-                }
 
                 if ((_.isArray(item.children) && item.children.length > 0)) {
                     createRuntimeList(item.children, item.event_id)
