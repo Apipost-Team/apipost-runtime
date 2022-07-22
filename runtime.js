@@ -44,6 +44,8 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
         assert: []
     };
 
+    let RUNNER_TOTAL_COUNT = 0;
+
     (function createRuntimeList(r, parent_id = '0') {
         if (r instanceof Array && r.length > 0) {
             r.forEach(item => {
@@ -64,6 +66,10 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
                     } : {},
                 })
 
+                if ((item.type == 'api' || item.type == 'request') && item.enabled > 0) {
+                    RUNNER_TOTAL_COUNT++;
+                }
+
                 if ((_.isArray(item.children) && item.children.length > 0)) {
                     createRuntimeList(item.children, item.event_id)
                 }
@@ -82,6 +88,7 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
                 sleep: sleep > 0 ? sleep : 0
             },
             enabled: 1,
+            RUNNER_TOTAL_COUNT: definition.length * (iterationCount > 0 ? iterationCount : 1),
             children: _.cloneDeep(definition)
         })]
     })
@@ -90,7 +97,6 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
 const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     // 当前流程总错误计数器
     let RUNNER_TOTAL_COUNT = 0; // 需要跑的总event分母
-    let RUNNER_RUNTIME_POINTER = 0; // 需要跑的总event分子
     let RUNNER_REPORT_ID = '';
     let RUNNER_ERROR_COUNT = 0;
     let RUNNER_PROGRESS = 0;
@@ -1015,7 +1021,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         RUNNER_REPORT_ID = uuid.v4(); // 测试事件的ID
         RUNNER_ERROR_COUNT = 0;
         // RUNNER_TOTAL_COUNT = 0
-        RUNNER_RUNTIME_POINTER = 0; // 需要跑的总event分子
         startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
         startTimeStamp = Date.now(); // 开始时间戳
         RUNNER_RESULT_LOG = {};
@@ -1029,6 +1034,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     let startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
     let startTimeStamp = Date.now(); // 开始时间戳
     let initDefinitions = []; // 原始colletion
+    let RUNNER_RUNTIME_POINTER = 0;
 
     // start run
     async function run(definitions, option = {}, initFlag = 0) {
@@ -1039,8 +1045,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
             runInit();
             RUNNER_STOP = 0;
-            RUNNER_TOTAL_COUNT = definitions[0].condition.limit * definitions[0].children.length;
+            RUNNER_TOTAL_COUNT = definitions[0].RUNNER_TOTAL_COUNT;
+            RUNNER_RUNTIME_POINTER = 0;
             initDefinitions = definitions;
+
+            if (RUNNER_TOTAL_COUNT <= 0) {
+                return;
+            }
         } else {
             if (RUNNER_STOP > 0) {
                 return;
@@ -1114,6 +1125,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         }
 
         if (_.isArray(definitions) && definitions.length > 0) {
+
             for (let i = 0; i < definitions.length; i++) {
                 let definition = definitions[i];
                 _.assign(definition, {
@@ -1133,7 +1145,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     }
                 }
 
-
+                // console.log(definition.event_id, definition.type)
                 if (definition.enabled > 0) {
                     // 设置沙盒的迭代变量
                     switch (definition.type) {
@@ -1150,7 +1162,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                             break;
                         case 'if':
                             if (returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value))) {
-                                await run(definition.children, option, 1);
+                                await run(definition.children, option, initFlag + 1);
                             }
                             break;
                         case 'request':
@@ -1424,7 +1436,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                 } else {
                                     _isHttpError = -1;
                                     if (scene == 'auto_test') {
-                                        cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}B, ${res.data.response.responseTime}ms]`.grey);
+                                        cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}KB, ${res.data.response.responseTime}ms]`.grey);
                                         cliConsole(`\t✓`.green, ` HTTP 请求成功`.grey);
                                     }
                                 }
@@ -1474,7 +1486,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         case 'for':
                             if (_.isArray(definition.children) && definition.children.length > 0) {
                                 for (let i = 0; i < mySandbox.replaceIn(definition.condition.limit); i++) {
-                                    await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), 1)
+                                    await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1)
                                 }
                             }
                             break;
@@ -1487,12 +1499,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                         break;
                                     }
 
-                                    await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), 1)
+                                    await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1)
                                 }
                             }
                             break;
                         case 'begin':
-                            await run(definition.children, option, 1)
+                            await run(definition.children, option, initFlag + 1)
                             break;
                         default:
                             break;
@@ -1508,82 +1520,90 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         })
                     }
 
-                    // 进度条
-                    if (initFlag == 1) {
+                    if (initFlag <= 1) {
                         RUNNER_RUNTIME_POINTER++;
+                    }
+
+                    // 进度条
+                    if (RUNNER_TOTAL_COUNT >= RUNNER_RUNTIME_POINTER && scene == 'auto_test') {
                         RUNNER_PROGRESS = _.floor(_.divide(RUNNER_RUNTIME_POINTER, RUNNER_TOTAL_COUNT), 2);
 
-                        if (scene == 'auto_test') {
+                        emitRuntimeEvent({
+                            action: 'progress',
+                            progress: RUNNER_PROGRESS,
+                            combined_id: combined_id,
+                            test_id: definition.test_id,
+                            current_event_id: definition.event_id
+                        })
+                    }
+
+                    // 完成
+                    if (RUNNER_TOTAL_COUNT == RUNNER_RUNTIME_POINTER) {
+                        if (scene == 'auto_test') { // 自动化测试
+                            // 获取未跑的 event 
+                            let ignoreEvents = [];
+                            (function getIgnoreAllApis(initDefinitions) {
+                                initDefinitions.forEach(item => {
+                                    if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
+                                        let _iteration_id = uuid.v4();
+
+                                        RUNNER_RESULT_LOG[_iteration_id] = {
+                                            test_id: item.test_id,
+                                            report_id: RUNNER_REPORT_ID,
+                                            parent_id: item.parent_id,
+                                            event_id: item.event_id,
+                                            iteration_id: _iteration_id,
+                                            type: item.type,
+                                            target_id: item.target_id,
+                                            request: item.request,
+                                            response: {},
+                                            http_error: -2,
+                                            assert: [],
+                                            datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                                        }
+
+                                        ignoreEvents.push(RUNNER_RESULT_LOG[_iteration_id])
+                                    }
+
+                                    if (_.isArray(item.children)) {
+                                        getIgnoreAllApis(item.children)
+                                    }
+                                })
+                            })(initDefinitions);
+
                             emitRuntimeEvent({
-                                action: 'progress',
-                                progress: RUNNER_PROGRESS,
+                                action: "complate",
                                 combined_id: combined_id,
-                                test_id: definition.test_id,
-                                current_event_id: definition.event_id
+                                envs: {
+                                    globals: mySandbox.variablesScope.globals,
+                                    environment: mySandbox.variablesScope.environment
+                                },
+                                ignore_events: ignoreEvents,
+                                test_report: calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name })
+                            })
+
+                            ignoreEvents = null;
+                        } else { // 接口请求
+                            let _http = RUNNER_RESULT_LOG[definition.iteration_id];
+
+                            emitRuntimeEvent({
+                                action: 'http_complate',
+                                envs: {
+                                    globals: mySandbox.variablesScope.globals,
+                                    environment: mySandbox.variablesScope.environment
+                                },
+                                data: {
+                                    assert: _http.assert,
+                                    target_id: _http.target_id,
+                                    response: _http.response,
+                                },
+                                timestamp: Date.now(),
+                                datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
                             })
                         }
 
-                        if (RUNNER_PROGRESS == 1) { // 完成
-                            if (scene == 'auto_test') {
-                                // 获取未跑的 event 
-                                (function getIgnoreAllApis(initDefinitions) {
-                                    initDefinitions.forEach(item => {
-                                        if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
-                                            let _iteration_id = uuid.v4();
-
-                                            RUNNER_RESULT_LOG[_iteration_id] = {
-                                                test_id: item.test_id,
-                                                report_id: RUNNER_REPORT_ID,
-                                                parent_id: item.parent_id,
-                                                event_id: item.event_id,
-                                                iteration_id: _iteration_id,
-                                                type: item.type,
-                                                target_id: item.target_id,
-                                                request: item.request,
-                                                response: {},
-                                                http_error: -2,
-                                                assert: [],
-                                                datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                                            }
-                                        }
-
-                                        if (_.isArray(item.children)) {
-                                            getIgnoreAllApis(item.children)
-                                        }
-                                    })
-                                })(initDefinitions);
-
-                                emitRuntimeEvent({
-                                    action: "complate",
-                                    combined_id: combined_id,
-                                    envs: {
-                                        globals: mySandbox.variablesScope.globals,
-                                        environment: mySandbox.variablesScope.environment
-                                    },
-                                    test_report: calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name })
-                                })
-                            } else {
-                                let _http = RUNNER_RESULT_LOG[definition.iteration_id];
-
-                                emitRuntimeEvent({
-                                    action: 'http_complate',
-                                    envs: {
-                                        globals: mySandbox.variablesScope.globals,
-                                        environment: mySandbox.variablesScope.environment
-                                    },
-                                    data: {
-                                        assert: _http.assert,
-                                        target_id: _http.target_id,
-                                        response: _http.response,
-                                    },
-                                    timestamp: Date.now(),
-                                    datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                                })
-                            }
-
-                            runInit();
-                            RUNNER_RESULT_LOG = initDefinitions = null;
-                        }
+                        runInit();
+                        RUNNER_RESULT_LOG = initDefinitions = null;
                     }
                 }
             }
