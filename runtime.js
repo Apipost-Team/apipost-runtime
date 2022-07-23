@@ -1030,7 +1030,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         const report = {
             combined_id: option.combined_id,
-            test_id: _.isArray(option.test_events) ? option.test_events[0].test_id : option.test_events.test_id,
             report_id: report_id,
             report_name: option.default_report_name,
             env_name: option.env_name,
@@ -1065,6 +1064,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         if (uuid.validate(option.combined_id) && _.isArray(option.test_events)) { // 测试套件
             _.assign(report, {
                 type: 'combined',
+                test_id: _.isArray(option.test_events) ? (_.map(option.test_events, function (o) { return o.event_id })) : [option.test_events.test_id],
             });
 
             option.test_events.forEach(test_event => {
@@ -1075,10 +1075,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 })))
             })
         } else { // 单测试用例
+            let _test_id = _.isArray(option.test_events) ? option.test_events[0].event_id : option.test_events.test_id;
             _.assign(report, {
                 type: 'single',
+                test_id: _test_id,
                 event_status: eventResultStatus,
-                test_events: definitionList
+                test_events: _.filter(definitionList, (o) => {
+                    return o.event_id == _test_id;
+                })
             })
         }
 
