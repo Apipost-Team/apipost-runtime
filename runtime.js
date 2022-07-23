@@ -1,4 +1,8 @@
+const { report } = require('process');
+
 const apipostRequest = require('apipost-send'),
+    Table = require('cli-table3'),
+    Cookie = require('cookie'),
     zlib = require('zlib'),
     Buffer = require('buffer/').Buffer,
     _ = require('lodash'),
@@ -22,9 +26,9 @@ const apipostRequest = require('apipost-send'),
     artTemplate = require('art-template');
 
 // cli console
-const cliConsole = function () {
+const cliConsole = function (arguments) {
     if (typeof window == 'undefined') {
-        console.log(_.join(arguments, ' '))
+        console.log(arguments)
     }
 }
 
@@ -43,8 +47,6 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
         cookie: [], // 响应cookie ，仅适用于 api或者request
         assert: []
     };
-
-    let RUNNER_TOTAL_COUNT = 0;
 
     (function createRuntimeList(r, parent_id = '0') {
         if (r instanceof Array && r.length > 0) {
@@ -65,10 +67,6 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
                         requestId: item.data.target_id,
                     } : {},
                 })
-
-                if ((item.type == 'api' || item.type == 'request') && item.enabled > 0) {
-                    RUNNER_TOTAL_COUNT++;
-                }
 
                 if ((_.isArray(item.children) && item.children.length > 0)) {
                     createRuntimeList(item.children, item.event_id)
@@ -96,12 +94,11 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
 
 const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     // 当前流程总错误计数器
-    let RUNNER_TOTAL_COUNT = 0; // 需要跑的总event分母
-    let RUNNER_REPORT_ID = '';
-    let RUNNER_ERROR_COUNT = 0;
-    let RUNNER_PROGRESS = 0;
-    let RUNNER_RESULT_LOG = {};
-    let RUNNER_STOP = 0;
+    let RUNNER_TOTAL_COUNT = 0, // 需要跑的总event分母
+        RUNNER_ERROR_COUNT = 0,
+        RUNNER_PROGRESS = 0,
+        RUNNER_RESULT_LOG = {},
+        RUNNER_STOP = {};
 
     if (typeof emitRuntimeEvent != 'function') {
         emitRuntimeEvent = function () { }
@@ -283,6 +280,26 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             return variablesStr;
         }
 
+        // console
+        const consoleFn = {};
+        new Array("log", "warn", "info", "error").forEach(method => {
+            Object.defineProperty(consoleFn, method, {
+                configurable: true,
+                value: function () {
+                    emitRuntimeEvent({
+                        action: 'console',
+                        method: method,
+                        message: {
+                            type: 'log',
+                            data: Array.from(arguments)
+                        },
+                        timestamp: Date.now(),
+                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                    })
+                }
+            });
+        })
+
         // 发送断言结果
         function emitAssertResult(status, expect, result, scope) {
             if (typeof scope != 'undefined' && _.isObject(scope) && _.isArray(scope.assert)) {
@@ -299,9 +316,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         expect: expect,
                         result: result
                     });
-
+                    // console.log(item, item.assert)
                     if (status === 'success') {
-                        cliConsole(`\t✓`.green, ` ${expect} 匹配`.grey)
+                        cliConsole(`\t✓`.green + ` ${expect} 匹配`.grey)
                     } else {
                         RUNNER_ERROR_COUNT++;
                         cliConsole(`\t${RUNNER_ERROR_COUNT}. ${expect} ${result}`.bold.red);
@@ -338,26 +355,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
             }
         }
-
-        // console
-        const consoleFn = {};
-        new Array("log", "warn", "info", "error").forEach(method => {
-            Object.defineProperty(consoleFn, method, {
-                configurable: true,
-                value: function () {
-                    emitRuntimeEvent({
-                        action: 'console',
-                        method: method,
-                        message: {
-                            type: 'log',
-                            data: Array.from(arguments)
-                        },
-                        timestamp: Date.now(),
-                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                    })
-                }
-            });
-        })
 
         // 断言自定义拓展规则（100% 兼容postman）
         chai.use(function () {
@@ -712,7 +709,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 (new vm2.VM({
                     timeout: 1000,
-                    mySandbox: {
+                    sandbox: {
                         ...{ pm },
                         ...{ chai },
                         ...{ emitAssertResult },
@@ -751,6 +748,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         }
                     }
                 })).run(new vm2.VMScript(code));
+
                 typeof callback === 'function' && callback();
             } catch (err) {
                 emitTargetPara({
@@ -880,37 +878,89 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
     // 计算runtime 结果
     function calculateRuntimeReport(log, initDefinitions = [], report_id = '', option = {}) {
+        log = Object.values(log);
+
+        // 说明： 本api统计数字均已去重
+        // 接口去重后的api集合
+        const _uniqLog = _.uniqWith(log, function (source, dist) {
+            return _.isEqual(source.target_id, dist.target_id)
+        });
+
+        // 接口未去重后的忽略集合
+        const _ignoreLog = _.filter(log, function (item) {
+            return item.http_error == -2
+        });
+
+        // 接口去重后的忽略集合
+        const _uniqIgnoreLog = _.uniqWith(_ignoreLog, function (source, dist) {
+            return _.isEqual(source.target_id, dist.target_id)
+        });
+
+        // 接口未去重后的http失败集合
+        const _httpErrorLog = _.filter(log, function (item) {
+            return item.http_error == 1
+        });
+
+        // 接口去重后的http失败集合
+        const _uniqHttpErrorLog = _.uniqWith(_httpErrorLog, function (source, dist) {
+            return _.isEqual(source.target_id, dist.target_id)
+        });
+
+        // 接口未去重后的assert失败集合
+        const _assertErrorLog = _.filter(log, function (item) {
+            return _.find(item.assert, _.matchesProperty('status', "error"))
+        });
+
+        // 接口去重后的assert失败集合
+        const _uniqAssertErrorLog = _.uniqWith(_assertErrorLog, function (source, dist) {
+            return _.isEqual(source.target_id, dist.target_id)
+        });
+
+        // 接口未去重后的assert成功集合
+        const _assertPassedLog = _.filter(log, function (item) {
+            return _.size(item.assert) > 0 && !_.find(item.assert, _.matchesProperty('status', "error"))
+        });
+
+        // 接口去重后的assert成功集合
+        const _uniqAssertPassedLog = _.uniqWith(_assertPassedLog, function (source, dist) {
+            return _.isEqual(source.target_id, dist.target_id)
+        });
+
+        // 接口未去重后的http成功集合
+        const _httpPassedLog = _.filter(log, function (item) {
+            return item.http_error == -1 && !_.find(_uniqHttpErrorLog, _.matchesProperty('target_id', item.target_id))
+        });
+
+        // 接口去重后的http成功集合
+        const _uniqHttpPassedLog = _.uniqWith(_httpPassedLog, function (source, dist) {
+            return _.isEqual(source.target_id, dist.target_id)
+        });
+
         // 计算 总api数
-        let totalCount = _.size(log);
+        let totalCount = _.size(_uniqLog);
 
         // 计算 未忽略的总api数
-        let totalEffectiveCount = _.countBy(log, function (item) {
-            return item.http_error != -2
-        })[true];
+        let totalEffectiveCount = _.subtract(totalCount, _.size(_uniqIgnoreLog))
 
         // 计算 http 错误个数
-        let httpErrorCount = Number(_.countBy(log, function (item) {
-            return item.http_error > 0
-        })[true])
+        let httpErrorCount = _.size(_uniqHttpErrorLog);
 
-        httpErrorCount = httpErrorCount > 0 ? httpErrorCount : 0;
-
-        // 计算 忽略接口 个数
-        let ignoreCount = Number(_.countBy(log, function (item) {
-            return item.http_error == -2
-        })[true])
-
-        ignoreCount = ignoreCount > 0 ? ignoreCount : 0;
+        // 计算 http 成功个数
+        let httpPassedCount = _.size(_uniqHttpPassedLog);
 
         // 计算 assert 错误个数
-        let assertErrorCount = 0;
+        let assertErrorCount = _.size(_uniqAssertErrorLog);
+
+        // 计算 assert 错误个数
+        let assertPassedCount = _.size(_uniqAssertPassedLog);
+
+        // 计算 忽略接口 个数
+        let ignoreCount = _.size(_uniqIgnoreLog);
+
+        // 获取 event 事件状态
         let eventResultStatus = {};
 
         Object.values(log).forEach(item => {
-            if (item.http_error == -1 && _.find(item.assert, _.matchesProperty('status', "error"))) {
-                assertErrorCount++;
-            }
-
             // 计算各个event的状态 [ignore, failure, passed]
             if (_.isArray(initDefinitions)) {
                 let parent_ids = getInitDefinitionsParentIDs(item.event_id, initDefinitions);
@@ -965,6 +1015,17 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             })
         })(initDefinitions)
 
+        // 计算 received_data， total_response_time
+        let _total_received_data = _total_response_time = _total_response_count = 0;
+
+        _.forEach(log, (item) => {
+            if (_.has(item, 'response.data.response.responseSize')) {
+                _total_response_count++;
+                _total_received_data = _.add(_total_received_data, Number(item.response.data.response.responseSize));
+                _total_response_time = _.add(_total_response_time, Number(item.response.data.response.responseTime));
+            }
+        })
+
         const report = {
             combined_id: option.combined_id,
             test_id: _.isArray(option.test_events) ? option.test_events[0].test_id : option.test_events.test_id,
@@ -975,17 +1036,23 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             total_count: totalCount,
             total_effective_count: totalEffectiveCount,
             ignore_count: ignoreCount,
+            total_received_data: _.floor(_total_received_data, 2),
+            total_response_time: _.floor(_total_response_time, 2),
+            average_response_time: _.floor(_.divide(_total_response_time, _total_response_count), 2),
+            http_errors: _httpErrorLog,
+            assert_errors: _assertErrorLog,
+            ignore_errors: _ignoreLog,
             http: {
-                passed: _.subtract(totalEffectiveCount, httpErrorCount),
-                passed_per: _.floor(_.divide(_.subtract(totalEffectiveCount, httpErrorCount), totalEffectiveCount), 2),
+                passed: httpPassedCount,
+                passed_per: _.floor(_.divide(httpPassedCount, totalCount), 2),
                 failure: httpErrorCount,
-                failure_per: _.floor(_.divide(httpErrorCount, totalEffectiveCount), 2)
+                failure_per: _.floor(_.divide(httpErrorCount, totalCount), 2)
             },
             assert: {
-                passed: _.subtract(totalEffectiveCount, assertErrorCount),
-                passed_per: _.floor(_.divide(_.subtract(totalEffectiveCount, assertErrorCount), totalEffectiveCount), 2),
+                passed: assertPassedCount,
+                passed_per: _.floor(_.divide(assertPassedCount, totalCount), 2),
                 failure: assertErrorCount,
-                failure_per: _.floor(_.divide(assertErrorCount, totalEffectiveCount), 2)
+                failure_per: _.floor(_.divide(assertErrorCount, totalCount), 2)
             },
             start_time: startTime,
             end_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
@@ -999,7 +1066,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             });
 
             option.test_events.forEach(test_event => {
-                report.children.push(calculateRuntimeReport(log, initDefinitions, report_id, _.assign(option, {
+                report.children.push(calculateRuntimeReport(_.filter(log, (o) => { return o.test_id == test_event.test_id; }), initDefinitions, report_id, _.assign(option, {
                     combined_id: 0,
                     test_events: test_event,
                     default_report_name: test_event.name
@@ -1013,12 +1080,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             })
         }
 
+        log = null;
         return report;
     }
 
+
     // 参数初始化
     function runInit() {
-        RUNNER_REPORT_ID = uuid.v4(); // 测试事件的ID
         RUNNER_ERROR_COUNT = 0;
         // RUNNER_TOTAL_COUNT = 0
         startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
@@ -1027,37 +1095,23 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     }
 
     // 停止 run
-    function stop() {
-        RUNNER_STOP = 1;
+    function stop(report_id, message) {
+        RUNNER_STOP[report_id] = 1;
+
+        emitRuntimeEvent({
+            action: "stop",
+            report_id: report_id,
+            message: message
+        })
     }
 
-    let startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
-    let startTimeStamp = Date.now(); // 开始时间戳
-    let initDefinitions = []; // 原始colletion
-    let RUNNER_RUNTIME_POINTER = 0;
+    let startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'), // 开始时间
+        startTimeStamp = Date.now(), // 开始时间戳
+        initDefinitions = [], // 原始colletion
+        RUNNER_RUNTIME_POINTER = 0;
 
     // start run
     async function run(definitions, option = {}, initFlag = 0) {
-        if (initFlag == 0) { // 初始化参数
-            if (_.size(RUNNER_RESULT_LOG) > 0) { // 当前有任务时，拒绝新任务
-                return;
-            }
-
-            runInit();
-            RUNNER_STOP = 0;
-            RUNNER_TOTAL_COUNT = definitions[0].RUNNER_TOTAL_COUNT;
-            RUNNER_RUNTIME_POINTER = 0;
-            initDefinitions = definitions;
-
-            if (RUNNER_TOTAL_COUNT <= 0) {
-                return;
-            }
-        } else {
-            if (RUNNER_STOP > 0) {
-                return;
-            }
-        }
-
         option = _.assign({
             project: {},
             collection: [], // 当前项目的所有接口列表
@@ -1070,7 +1124,28 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             requester: {} // 发送模块的 options
         }, option);
 
-        var { scene, project, collection, iterationData, combined_id, test_events, default_report_name, user, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+        var { RUNNER_REPORT_ID, scene, project, collection, iterationData, combined_id, test_events, default_report_name, user, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+
+        if (initFlag == 0) { // 初始化参数
+            if (_.size(RUNNER_RESULT_LOG) > 0) { // 当前有任务时，拒绝新任务
+                return;
+            }
+
+            runInit();
+            RUNNER_STOP[RUNNER_REPORT_ID] = 0;
+            RUNNER_TOTAL_COUNT = typeof definitions[0] == 'object' ? definitions[0].RUNNER_TOTAL_COUNT : 0;
+            RUNNER_RUNTIME_POINTER = 0;
+            initDefinitions = definitions;
+
+            if (RUNNER_TOTAL_COUNT <= 0) {
+                return;
+            }
+        } else {
+            if (RUNNER_STOP[RUNNER_REPORT_ID] > 0) {
+                RUNNER_RESULT_LOG = definitions = option = collection = initDefinitions = null;
+                return;
+            }
+        }
 
         // 使用场景 auto_test/request
         if (_.isUndefined(scene)) {
@@ -1157,7 +1232,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         case 'script':
                         case 'assert':
                             if (_.has(definition, 'data.content') && _.isString(definition.data.content)) {
-                                mySandbox.execute(definition.data.content, definition, 'test', function (err, res) { })
+                                mySandbox.execute(definition.data.content, definition, 'test', function (err, res) {
+                                    if (err && ignoreError < 1) {
+                                        stop(RUNNER_REPORT_ID, String(err));
+                                    }
+                                })
                             }
                             break;
                         case 'if':
@@ -1312,7 +1391,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                                 // 执行预执行脚本
                                 if (_.has(_requestPara, 'pre_script') && _.isString(_requestPara.pre_script)) {
-                                    mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', function (err, res) { })
+                                    mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', function (err, res) {
+                                        if (err && ignoreError < 1) {
+                                            stop(RUNNER_REPORT_ID, String(err));
+                                        }
+                                    })
                                 }
 
                                 let _request = _.cloneDeep(definition.request);
@@ -1411,20 +1494,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                     res = e;
                                 }
 
-                                // 发送console
-                                if (scene != 'auto_test') {
-                                    emitRuntimeEvent({
-                                        action: 'console',
-                                        method: res.status === 'error' ? 'error' : 'log',
-                                        message: {
-                                            type: 'request',
-                                            data: res
-                                        },
-                                        timestamp: Date.now(),
-                                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-                                    })
-                                }
-
                                 if (res.status === 'error') {
                                     _isHttpError = 1;
                                     RUNNER_ERROR_COUNT++;
@@ -1437,7 +1506,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                     _isHttpError = -1;
                                     if (scene == 'auto_test') {
                                         cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}KB, ${res.data.response.responseTime}ms]`.grey);
-                                        cliConsole(`\t✓`.green, ` HTTP 请求成功`.grey);
+                                        cliConsole(`\t✓`.green + ` HTTP 请求成功`.grey);
                                     }
                                 }
 
@@ -1457,13 +1526,79 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                                 try {
                                     _.set(_response, 'data.response.stream.data', Array.from(zlib.deflateSync(Buffer.from(_response.data.response.stream.data))));
-                                } catch (err) { }
+                                } catch (err) { } // 此错误无需中止运行
 
                                 _.assign(_target, {
                                     request: _request,
                                     response: _response,
                                     http_error: _isHttpError
                                 })
+
+                                // 发送console
+
+                                if (scene != 'auto_test') { /// done
+                                    if (res.status === 'error') {
+                                        let _formPara = {}
+
+                                        if (_.indexOf(['form-data', 'urlencoded'], _request.request.body.mode)) {
+                                            if (_.has(_request, 'request.body.parameter')) {
+                                                _request.request.body.parameter.forEach(_para => {
+                                                    if (_para.is_checked > 0) {
+                                                        if (!_formPara[_para.key]) {
+                                                            _formPara[_para.key] = [];
+                                                        }
+                                                        _formPara[_para.key].push(_para.value);
+                                                    }
+                                                })
+                                            }
+                                        } else {
+                                            _formPara = _request.request.body.raw
+                                        }
+
+                                        // 请求控制台信息
+                                        emitRuntimeEvent({
+                                            action: 'console',
+                                            method: 'request',
+                                            message: {
+                                                data: {
+                                                    request: {
+                                                        method: _request.method,
+                                                        url: request.setQueryString(_request.url, request.formatQueries(_request.request.query.parameter)).uri,
+                                                        request_bodys: _.indexOf(['form-data', 'urlencoded'], _request.request.body.mode) ? _.mapValues(_formPara, function (o) {
+                                                            return _.size(o) > 1 ? o : o[0]
+                                                        }) : _formPara,
+                                                        request_headers: {
+                                                            ...request.formatRequestHeaders(_request.request.header.parameter),
+                                                            ...request.createAuthHeaders(_request)
+                                                        }
+                                                    },
+                                                    response: {},
+                                                    message: _response.message,
+                                                    status: "error"
+                                                }
+                                            },
+                                            timestamp: Date.now(),
+                                            datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                                        })
+                                    } else {
+                                        emitRuntimeEvent({
+                                            action: 'console',
+                                            method: 'request',
+                                            message: _response,
+                                            timestamp: Date.now(),
+                                            datetime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+                                        })
+                                    }
+                                }
+
+                                // 执行后执行脚本
+                                if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
+                                    mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) {
+                                        if (err && ignoreError < 1) {
+                                            stop(RUNNER_REPORT_ID, String(err));
+                                        }
+                                    })
+                                }
 
                                 if (definition.event_id != '0' && scene == 'auto_test') {
                                     emitRuntimeEvent({
@@ -1473,11 +1608,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                         current_event_id: definition.event_id,
                                         test_log: _target
                                     })
-                                }
-
-                                // 执行后执行脚本
-                                if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
-                                    mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', function (err, res) { })
                                 }
 
                                 _requestPara = _request = _response = res = _parent_ids = _target = null;
@@ -1571,6 +1701,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                 })
                             })(initDefinitions);
 
+                            let _runReport = calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name });
+
                             emitRuntimeEvent({
                                 action: "complate",
                                 combined_id: combined_id,
@@ -1579,9 +1711,57 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                     environment: mySandbox.variablesScope.environment
                                 },
                                 ignore_events: ignoreEvents,
-                                test_report: calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name })
+                                test_report: _runReport
                             })
 
+                            // console.log(_runReport)
+                            // 打印报告
+                            let reportTable = new Table({
+                                style: { 'padding': 5, head: [], border: [] },
+                            });
+
+                            reportTable.push(
+                                [{ content: `The result of API test`.bold.gray, colSpan: 4, hAlign: 'center' }],
+                                ['', { content: 'passed', hAlign: 'center' }, { content: 'failed', hAlign: 'center' }, { content: 'ignore', hAlign: 'center' }],
+                                [{ content: 'http response', hAlign: 'left' }, { content: `${_runReport.http.passed}`.green, hAlign: 'center' }, { content: `${_runReport.http.failure}`.underline.red, hAlign: 'center' }, { content: `${_runReport.ignore_count}`, rowSpan: 2, hAlign: 'center', vAlign: 'center' }],
+                                [{ content: 'assertions', hAlign: 'left' }, { content: `${_runReport.assert.passed}`.green, hAlign: 'center' }, { content: `${_runReport.assert.failure}`.underline.red, hAlign: 'center' }],
+                                [{ content: `total number of api: ${_runReport.total_count}, ignore: ${_runReport.ignore_count}`, colSpan: 4, hAlign: 'left' }],
+                                [{ content: `total data received: ${_runReport.total_received_data} KB (approx)`, colSpan: 4, hAlign: 'left' }],
+                                [{ content: `total response time: ${_runReport.total_response_time} 毫秒, average response time: ${_runReport.average_response_time} 毫秒`, colSpan: 4, hAlign: 'left' }],
+                                [{ content: `total run duration: ${_runReport.long_time}`, colSpan: 4, hAlign: 'left' }],
+                                [{ content: `Generated by apipost-cli (https://github.com/Apipost-Team/apipost-cli)`.gray, colSpan: 4, hAlign: 'center' }]
+                            );
+
+                            cliConsole(reportTable.toString());
+
+                            let failedTable = new Table({
+                                chars: {
+                                    'top': '', 'top-mid': '', 'top-left': '', 'top-right': ''
+                                    , 'bottom': '', 'bottom-mid': '', 'bottom-left': '', 'bottom-right': ''
+                                    , 'left': '', 'left-mid': '', 'mid': '', 'mid-mid': ''
+                                    , 'right': '', 'right-mid': '', 'middle': ' '
+                                },
+                                style: { 'padding': 5, head: [], border: [] },
+                            });
+
+                            failedTable.push(
+                                [{ content: '', colSpan: 2 }],
+                                [{ content: '#'.underline.red, hAlign: 'center' }, { content: 'failure'.underline.red, hAlign: 'left' }, { content: 'detail'.underline.red, hAlign: 'left' }]
+                            )
+
+                            let cliCounter = 0;
+                            if (_.size(_runReport.assert_errors) > 0) {
+                                _.forEach(_runReport.assert_errors, (item) => {
+                                    _.forEach(item.assert, (assert) => {
+                                        cliCounter++;
+                                        failedTable.push(
+                                            [{ content: '', colSpan: 2 }],
+                                            [{ content: `${cliCounter}.`, hAlign: 'center' }, { content: '断言错误', hAlign: 'left' }, { content: `${assert.expect}` + "\n" + `${assert.result}`.gray, hAlign: 'left' }]
+                                        )
+                                    })
+                                })
+                            }
+                            cliConsole(failedTable.toString());
                             ignoreEvents = null;
                         } else { // 接口请求
                             let _http = RUNNER_RESULT_LOG[definition.iteration_id];
@@ -1604,6 +1784,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                         runInit();
                         RUNNER_RESULT_LOG = initDefinitions = null;
+
+                        if (RUNNER_STOP[RUNNER_REPORT_ID]) {
+                            console.log('all ok')
+                            delete RUNNER_STOP[RUNNER_REPORT_ID];
+                        }
                     }
                 }
             }
@@ -1621,7 +1806,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
     return;
 }
-
 
 module.exports.Runtime = Runtime;
 module.exports.Collection = Collection;
