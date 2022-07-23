@@ -10,7 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npm version patch && rollup -c rollup.config.js && npm publish",
     "pull":"git pull && git add . && git commit -m 'pull' && git push",
-    "pbulish":"npm run pull && npm run build"
+    "publish":"npm run pull && npm run build"
   },
   "repository": {
     "type": "git",
