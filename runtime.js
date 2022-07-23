@@ -26,9 +26,9 @@ const apipostRequest = require('apipost-send'),
     artTemplate = require('art-template');
 
 // cli console
-const cliConsole = function (arg) {
+const cliConsole = function (arguments) {
     if (typeof window == 'undefined') {
-        console.log(arg)
+        console.log(arguments)
     }
 }
 
@@ -1016,7 +1016,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         })(initDefinitions)
 
         // 计算 received_data， total_response_time
-        let _total_received_data = _total_response_time = _total_response_count = 0;
+        let _total_received_data = 0,
+            _total_response_time = 0,
+            _total_response_count = 0;
 
         _.forEach(log, (item) => {
             if (_.has(item, 'response.data.response.responseSize')) {
