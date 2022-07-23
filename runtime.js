@@ -26,9 +26,9 @@ const apipostRequest = require('apipost-send'),
     artTemplate = require('art-template');
 
 // cli console
-const cliConsole = function (arguments) {
+const cliConsole = function (arg) {
     if (typeof window == 'undefined') {
-        console.log(arguments)
+        console.log(arg)
     }
 }
 
