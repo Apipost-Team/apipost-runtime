@@ -1,5 +1,3 @@
-const { report } = require('process');
-
 const apipostRequest = require('apipost-send'),
     Table = require('cli-table3'),
     Cookie = require('cookie'),
