@@ -10,7 +10,7 @@ $ npm install apipost-runtime
 
 ##  Usage
 
-```
+```javascript
 let iterationData = [
     {
         "email": "1234@qq.com",
