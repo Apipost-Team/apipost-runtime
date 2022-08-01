@@ -1482,6 +1482,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                                 // url 兼容
                                 let _url = _request.url ? _request.url : _request.request.url;
+
+                                // 拼接环境前置URl
+                                if(_.isString(env_pre_url) && env_pre_url.length > 0) _url=env_pre_url + _url
+                                
                                 _url = mySandbox.replaceIn(_url);
 
                                 if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
