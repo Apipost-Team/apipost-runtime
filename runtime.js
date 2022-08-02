@@ -1274,7 +1274,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                                         }
 
                                         // 全局参数
-                                        if (_.isArray(project.request[_type])) {
+                                        if (typeof project.request == 'object' && _.isArray(project.request[_type])) {
                                             project.request[_type].forEach(item => {
                                                 if (item.is_checked > 0 && _.trim(item.key) != '') {
                                                     if (_type == 'header') {
