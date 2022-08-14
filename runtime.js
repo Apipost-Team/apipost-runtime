@@ -23,7 +23,7 @@ const apipostRequest = require('apipost-send'),
   stripJsonComments = require('strip-json-comments'),
   JSONbig = require('json-bigint'),
   aTools = require('apipost-tools'),
-  validCookie = require('is-valid-cookie'),
+  validCookie = require('check-valid-cookie'),
   artTemplate = require('art-template');
 
 // cli console
