@@ -11,8 +11,10 @@ const apipostRequest = require('apipost-send'),
   CryptoJS = require('crypto-js'),
   jsonpath = require('jsonpath'),
   x2js = require('x2js'),
-  $ = require('jquery'),
-    // JSEncrypt = require("jsencrypt"),
+  { JSDOM } = require('jsdom'),
+  { window } = new JSDOM(''),
+  $ = require('jquery')(window),
+  // JSEncrypt = require("jsencrypt"),
   moment = require('moment'),
   dayjs = require('dayjs'),
   vm2 = require('vm2'),
@@ -21,6 +23,7 @@ const apipostRequest = require('apipost-send'),
   stripJsonComments = require('strip-json-comments'),
   JSONbig = require('json-bigint'),
   aTools = require('apipost-tools'),
+  validCookie = require('is-valid-cookie'),
   artTemplate = require('art-template');
 
 // cli console
@@ -29,7 +32,7 @@ const cliConsole = function (args) {
     console.log(args);
   }
 };
-
+// console.log('ajax', jQuery.ajax);
 const Collection = function ApipostCollection(definition, option = { iterationCount: 1, sleep: 0 }) {
   const { iterationCount, sleep } = option;
 
@@ -60,8 +63,8 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
           condition: ['request', 'api'].indexOf(item.type) > -1 ? {} : item.data,
           request: ['request', 'api'].indexOf(item.type) > -1 ? item.data : {},
           info: ['request', 'api'].indexOf(item.type) > -1 ? {
-                        // requestUrl: item.data.url ? item.data.url : item.data.request.url,
-                        // requestName: item.data.name ? item.data.name : (item.data.url ? item.data.url : item.data.request.url),
+            // requestUrl: item.data.url ? item.data.url : item.data.request.url,
+            // requestName: item.data.name ? item.data.name : (item.data.url ? item.data.url : item.data.request.url),
             requestId: item.data.target_id,
           } : {},
         });
@@ -73,7 +76,7 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
     }
   }(definition));
 
-    // 构造一个执行对象
+  // 构造一个执行对象
   Object.defineProperty(this, 'definition', {
     configurable: true,
     writable: true,
@@ -91,7 +94,7 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
 };
 
 const Runtime = function ApipostRuntime(emitRuntimeEvent) {
-    // 当前流程总错误计数器
+  // 当前流程总错误计数器
   let RUNNER_TOTAL_COUNT = 0, // 需要跑的总event分母
     RUNNER_ERROR_COUNT = 0,
     RUNNER_PROGRESS = 0,
@@ -102,9 +105,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     emitRuntimeEvent = function () { };
   }
 
-    // Apipost 沙盒
+  // Apipost 沙盒
   const Sandbox = function ApipostSandbox() {
-        // 内置变量
+    // 内置变量
     const insideVariablesScope = {
       list: {}, // 常量
     };
@@ -117,7 +120,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       insideVariablesScope.list[`$${func}`] = ['131', '132', '137', '188'][_.random(0, 3)] + Mock.mock(/\d{8}/);
     });
 
-        // 动态变量
+    // 动态变量
     const variablesScope = {
       globals: {}, // 公共变量
       environment: {}, // 环境变量
@@ -126,7 +129,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       iterationData: {}, // 流程测试时的数据变量，临时变量，无需存库
     };
 
-        // 获取所有动态变量
+    // 获取所有动态变量
     function getAllDynamicVariables(type) {
       if (typeof aptScripts === 'object') {
         Object.keys(variablesScope).forEach((key) => {
@@ -146,11 +149,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       return allVariables;
     }
 
-        // 设置动态变量
+    // 设置动态变量
     const dynamicVariables = {};
 
-        // 变量相关
-        // ['variables'] 临时变量
+    // 变量相关
+    // ['variables'] 临时变量
     Object.defineProperty(dynamicVariables, 'variables', {
       configurable: true,
       value: {
@@ -182,7 +185,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       },
     });
 
-        // ['iterationData'] 临时变量
+    // ['iterationData'] 临时变量
     Object.defineProperty(dynamicVariables, 'iterationData', {
       configurable: true,
       value: {
@@ -204,7 +207,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       },
     });
 
-        // ['globals', 'environment', 'collectionVariables']
+    // ['globals', 'environment', 'collectionVariables']
     Object.keys(variablesScope).forEach((type) => {
       if (['iterationData', 'variables'].indexOf(type) === -1) {
         Object.defineProperty(dynamicVariables, type, {
@@ -246,12 +249,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       }
     });
 
-        // 获取所有内置变量
+    // 获取所有内置变量
     function getAllInsideVariables() {
       return _.cloneDeep(insideVariablesScope.list);
     }
 
-        // 变量替换
+    // 变量替换
     function replaceIn(variablesStr, type, withMock = false) {
       let allVariables = getAllInsideVariables();
       _.assign(allVariables, getAllDynamicVariables(type));
@@ -260,7 +263,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         variablesStr = Mock.mock(variablesStr);
       }
 
-            // 替换自定义变量
+      // 替换自定义变量
       const _regExp = new RegExp(Object.keys(allVariables).map((item) => {
         if (_.startsWith(item, '$')) {
           item = `\\${item}`;
@@ -277,7 +280,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       return variablesStr;
     }
 
-        // console
+    // console
     const consoleFn = {};
     new Array('log', 'warn', 'info', 'error').forEach((method) => {
       Object.defineProperty(consoleFn, method, {
@@ -297,10 +300,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       });
     });
 
-        // 发送断言结果
+    // 发送断言结果
     function emitAssertResult(status, expect, result, scope) {
       if (typeof scope !== 'undefined' && _.isObject(scope) && _.isArray(scope.assert)) {
-                // 更新日志
+        // 更新日志
         const item = RUNNER_RESULT_LOG[scope.iteration_id];
 
         if (item) {
@@ -313,7 +316,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             expect,
             result,
           });
-                    // console.log(item, item.assert)
+          // console.log(item, item.assert)
           if (status === 'success') {
             cliConsole('\t✓'.green + ` ${expect} 匹配`.grey);
           } else {
@@ -324,10 +327,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       }
     }
 
-        // 设置响应和请求参数
+    // 设置响应和请求参数
     function emitTargetPara(data, scope) {
       if (typeof scope !== 'undefined' && _.isObject(scope)) {
-                // 更新日志
+        // 更新日志
         const item = RUNNER_RESULT_LOG[scope.iteration_id];
 
         if (item) {
@@ -342,44 +345,45 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       }
     }
 
-        // 发送可视化结果
+    // 发送可视化结果
     function emitVisualizerHtml(status, html, scope) {
       if (typeof scope !== 'undefined' && _.isObject(scope)) {
         const item = RUNNER_RESULT_LOG[scope.iteration_id];
 
         if (item) {
           item.visualizer_html = { status, html };
+          console.log(item.visualizer_html);
         }
       }
     }
 
-        // 断言自定义拓展规则（100% 兼容postman）
+    // 断言自定义拓展规则（100% 兼容postman）
     chai.use(() => {
       require('chai-apipost')(chai);
     });
 
-        // 执行脚本
-        /**
-             * code js 代码（当前仅支持 js 代码，后续支持多种语言，如 python 等）
-             * scope 当前变量环境对象，里面包含
-             * {
-            //  *      variables   临时变量 此数据为临时数据，无需存库
-             *      globals     公共变量
-             *      environment     环境变量
-             *      collectionVariables     目录变量
-            //  *      iterationData   流程测试时的数据变量 此数据为临时数据，无需存库
-             *      request     请求参数
-             *      response    响应参数
-             *      cookie      cookie
-             *      info        请求运行相关信息
-             * }
-             *
-             * callback 回调
-         * */
+    // 执行脚本
+    /**
+         * code js 代码（当前仅支持 js 代码，后续支持多种语言，如 python 等）
+         * scope 当前变量环境对象，里面包含
+         * {
+        //  *      variables   临时变量 此数据为临时数据，无需存库
+         *      globals     公共变量
+         *      environment     环境变量
+         *      collectionVariables     目录变量
+        //  *      iterationData   流程测试时的数据变量 此数据为临时数据，无需存库
+         *      request     请求参数
+         *      response    响应参数
+         *      cookie      cookie
+         *      info        请求运行相关信息
+         * }
+         *
+         * callback 回调
+     * */
     function execute(code, scope, eventName, callback) {
       scope = _.isPlainObject(scope) ? _.cloneDeep(scope) : {};
 
-            // 初始化数据库中的当前变量值 init
+      // 初始化数据库中的当前变量值 init
       if (typeof aptScripts === 'object') {
         Object.keys(variablesScope).forEach((key) => {
           if (_.isObject(aptScripts[key]) && _.isFunction(aptScripts[key].toObject) && ['iterationData', 'variables'].indexOf(key) > -1) {
@@ -388,10 +392,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         });
       }
 
-            // pm 对象
+      // pm 对象
       const pm = {};
 
-            // info, 请求、响应、cookie, iterationData
+      // info, 请求、响应、cookie, iterationData
       new Array('info', 'request', 'response', 'cookie', 'iterationData').forEach((key) => {
         if (_.indexOf(['request', 'response'], key) > -1) {
           switch (key) {
@@ -467,7 +471,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         }
       });
 
-            // 变量相关
+      // 变量相关
       Object.keys(variablesScope).forEach((type) => {
         Object.defineProperty(pm, type, {
           configurable: true,
@@ -498,9 +502,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         });
       }
 
-            // 请求参数相关
+      // 请求参数相关
       if (typeof scope !== 'undefined' && _.isObject(scope) && _.has(scope, 'request.request')) {
-                // 更新日志
+        // 更新日志
         const item = RUNNER_RESULT_LOG[scope.iteration_id];
 
         if (item) {
@@ -605,13 +609,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         }
       }
 
-            // expert
+      // expert
       Object.defineProperty(pm, 'expect', {
         configurable: true,
         value: chai.expect,
       });
 
-            // test
+      // test
       Object.defineProperty(pm, 'test', {
         configurable: true,
         value(desc, callback) {
@@ -624,7 +628,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         },
       });
 
-            // assert
+      // assert
       Object.defineProperty(pm, 'assert', {
         configurable: true,
         value(assert) {
@@ -642,13 +646,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         },
       });
 
-            // 发送方法
+      // 发送方法
       Object.defineProperty(pm, 'sendRequest', {
         configurable: true,
         value: new apipostRequest(),
       });
 
-            // 可视化
+      // 可视化
       Object.defineProperty(pm, 'visualizer', {
         configurable: true,
         value: {
@@ -668,8 +672,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         value: (template, data) => {
           try {
             const html = artTemplate.render(template, data);
+            // console.log(html);
             emitVisualizerHtml('success', html, scope);
           } catch (e) {
+            // console.log(e);
             emitVisualizerHtml('error', e.toString(), scope);
           }
         },
@@ -678,42 +684,42 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       Object.defineProperty(pm, 'getData', { // 此方法为兼容 postman ，由于流程差异，暂时不支持
         configurable: true,
         value(callback) {
-                    // @todo
+          // @todo
         },
       });
 
-            // 跳过下面的流程直接到执行指定接口
+      // 跳过下面的流程直接到执行指定接口
       Object.defineProperty(pm, 'setNextRequest', { // 此方法为兼容 postman ，由于流程差异，暂时不支持
         configurable: true,
         value(target_id) {
-                    // @todo
+          // @todo
         },
       });
 
-            // 执行
+      // 执行
       try {
         $.md5 = function (str) { // 兼容旧版
           return CryptoJS.MD5(str).toString();
         };
 
         (new vm2.VM({
-          timeout: 1000,
+          timeout: 5000,
           sandbox: {
             ...{ pm },
             ...{ chai },
             ...{ emitAssertResult },
-                        // ...{ atob },
-                        // ...{ btoa },
+            // ...{ atob },
+            // ...{ btoa },
             ...{ JSON5 },
             ...{ _ },
             ...{ Mock },
             ...{ uuid },
             ...{ jsonpath },
             ...{ CryptoJS },
-                        // ...{ navigator?navigator:{} },
-            ...{ $ },
+            // ...{ navigator?navigator:{} },
+            // ...{ $ },
             ...{ x2js },
-                        // ...{ JSEncrypt?JSEncrypt:{} },
+            // ...{ JSEncrypt?JSEncrypt:{} },
             ...{ moment },
             ...{ dayjs },
             console: consoleFn,
@@ -723,6 +729,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             uuidv4() {
               return uuid.v4();
             },
+            $,
             apt: pm,
             request: pm.request ? _.cloneDeep(pm.request) : {},
             response: pm.response ? _.assign(_.cloneDeep(pm.response), { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
@@ -740,6 +747,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         typeof callback === 'function' && callback();
       } catch (err) {
+        console.log(err);
         emitTargetPara({
           action: 'SCRIPT_ERROR',
           eventName,
@@ -761,7 +769,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
   const mySandbox = new Sandbox();
 
-    // sleep 延迟方法
+  // sleep 延迟方法
   function sleepDelay(ms) {
     const end = Date.now() + ms;
     while (true) {
@@ -771,9 +779,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     }
   }
 
-    // 根据测试条件返回布尔值
+  // 根据测试条件返回布尔值
   function returnBoolean(exp, compare, value) {
     let bool = false;
+
+    if (exp == '') {
+      return compare == 'null';
+    }
+
     switch (compare) {
       case 'eq':
         bool = exp == value;
@@ -810,7 +823,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     return bool;
   }
 
-    // 获取某接口的 所有父target
+  // 获取某接口的 所有父target
   function getParentTargetIDs(collection, target_id, parent_ids = []) {
     if (_.isArray(collection)) {
       const item = _.find(collection, _.matchesProperty('target_id', target_id));
@@ -824,7 +837,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     return parent_ids;
   }
 
-    // 获取 指定 event_id 的 initDefinitions 的所有父亲ID
+  // 获取 指定 event_id 的 initDefinitions 的所有父亲ID
   function getInitDefinitionsParentIDs(event_id, initDefinitions = []) {
     const definitionArr = [];
 
@@ -848,7 +861,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     (function getParentArr(event_id) {
       definitionArr.forEach((item) => {
         if (item.event_id == event_id) {
-                    // if (uuid.validate(item.parent_id)) {
+          // if (uuid.validate(item.parent_id)) {
           if (item.parent_id != '0') {
             parentArr.push(item.parent_id);
             getParentArr(item.parent_id);
@@ -860,77 +873,84 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     return parentArr;
   }
 
-    // 获取某接口的详细信息
+  // 获取某接口的详细信息
   function getItemFromCollection(collection, target_id) {
     return _.find(collection, _.matchesProperty('target_id', target_id));
   }
 
-    // 计算runtime 结果
+  // 计算runtime 结果
   function calculateRuntimeReport(log, initDefinitions = [], report_id = '', option = {}) {
     log = Object.values(log);
 
-        // 说明： 本api统计数字均已去重
-        // 接口去重后的api集合
+    // 说明： 本api统计数字均已去重
+    // 接口去重后的api集合
     const _uniqLog = _.uniqWith(log, (source, dist) => _.isEqual(source.target_id, dist.target_id));
 
-        // 接口未去重后的忽略集合
+    // 接口未去重后的忽略集合
     const _ignoreLog = _.filter(log, item => item.http_error == -2);
 
-        // 接口去重后的忽略集合
+    // 接口去重后的忽略集合
     const _uniqIgnoreLog = _.uniqWith(_ignoreLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
 
-        // 接口未去重后的http失败集合
+    // 接口未去重后的http失败集合
     const _httpErrorLog = _.filter(log, item => item.http_error == 1);
 
-        // 接口去重后的http失败集合
+    // 接口去重后的http失败集合
     const _uniqHttpErrorLog = _.uniqWith(_httpErrorLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
 
-        // 接口未去重后的assert失败集合
+    // 接口未去重后的assert失败集合
     const _assertErrorLog = _.filter(log, item => _.find(item.assert, _.matchesProperty('status', 'error')));
 
-        // 接口去重后的assert失败集合
+    // 接口去重后的assert失败集合
     const _uniqAssertErrorLog = _.uniqWith(_assertErrorLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
 
-        // 接口未去重后的assert成功集合
+    // 接口未去重后的assert成功集合
     const _assertPassedLog = _.filter(log, item => _.size(item.assert) > 0 && !_.find(item.assert, _.matchesProperty('status', 'error')));
 
-        // 接口去重后的assert成功集合
+    // 接口去重后的assert成功集合
     const _uniqAssertPassedLog = _.uniqWith(_assertPassedLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
 
-        // 接口未去重后的http成功集合
+    // 接口未去重后的http成功集合
     const _httpPassedLog = _.filter(log, item => item.http_error == -1 && !_.find(_uniqHttpErrorLog, _.matchesProperty('target_id', item.target_id)));
 
-        // 接口去重后的http成功集合
+    // 接口去重后的http成功集合
     const _uniqHttpPassedLog = _.uniqWith(_httpPassedLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
-
-        // 计算 总api数
+    // console.log(_uniqHttpPassedLog);
+    // 计算 总api数
     const totalCount = _.size(_uniqLog);
 
-        // 计算 未忽略的总api数
+    // 计算 未忽略的总api数
     const totalEffectiveCount = _.subtract(totalCount, _.size(_uniqIgnoreLog));
 
-        // 计算 http 错误个数
+    // 计算 http 错误个数
     const httpErrorCount = _.size(_uniqHttpErrorLog);
 
-        // 计算 http 成功个数
+    // 计算 http 成功个数
     const httpPassedCount = _.size(_uniqHttpPassedLog);
 
-        // 计算 assert 错误个数
+    // 计算 assert 错误个数
     const assertErrorCount = _.size(_uniqAssertErrorLog);
 
-        // 计算 assert 错误个数
+    // 计算 assert 错误个数
     const assertPassedCount = _.size(_uniqAssertPassedLog);
 
-        // 计算 忽略接口 个数
+    // 计算 忽略接口 个数
     const ignoreCount = _.size(_uniqIgnoreLog);
 
-        // 获取 event 事件状态
+    // 获取 event 事件状态
     const eventResultStatus = {};
 
     Object.values(log).forEach((item) => {
-            // 计算各个event的状态 [ignore, failure, passed]
+      console.log(item.assert);
+      // 计算各个event的状态 [ignore, failure, passed]
       if (_.isArray(initDefinitions)) {
         const parent_ids = getInitDefinitionsParentIDs(item.event_id, initDefinitions);
+
+        if (_.find(item.assert, _.matchesProperty('status', 'error'))) {
+          item.assert_error == 1;
+        } else {
+          item.assert_error == -1;
+        }
 
         if (item.http_error == 1 || _.find(item.assert, _.matchesProperty('status', 'error'))) { // failure
           eventResultStatus[item.event_id] = 'failure';
@@ -982,7 +1002,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       });
     }(initDefinitions));
 
-        // 计算 received_data， total_response_time
+    // 计算 received_data， total_response_time
     let _total_received_data = 0,
       _total_response_time = 0,
       _total_response_count = 0;
@@ -995,11 +1015,25 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       }
     });
 
+    if (typeof option.env === 'undefined') {
+      option.env = {
+        env_id: option.env_id ? option.env_id : -1,
+        env_name: option.env_name,
+        env_pre_url: option.env_pre_url,
+      };
+    } else {
+      option.env_id = option.env.env_id;
+      option.env_name = option.env.env_name;
+      option.env_pre_url = option.env.env_pre_url;
+    }
+
     const report = {
       combined_id: option.combined_id,
       report_id,
       report_name: option.default_report_name,
-      env_name: option.env_name,
+      env_id: option.env.env_id,
+      env_name: option.env.env_name,
+      env_pre_url: option.env.env_pre_url,
       user: option.user,
       total_count: totalCount,
       total_effective_count: totalEffectiveCount,
@@ -1028,6 +1062,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       children: [],
     };
 
+    if (!_.has(report, 'user.nick_name')) {
+      _.set(report, 'user.nick_name', '匿名');
+    }
     if (uuid.validate(option.combined_id) && _.isArray(option.test_events)) { // 测试套件
       _.assign(report, {
         type: 'combined',
@@ -1056,16 +1093,16 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
   }
 
 
-    // 参数初始化
+  // 参数初始化
   function runInit() {
     RUNNER_ERROR_COUNT = 0;
-        // RUNNER_TOTAL_COUNT = 0
+    // RUNNER_TOTAL_COUNT = 0
     startTime = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 开始时间
     startTimeStamp = Date.now(); // 开始时间戳
     RUNNER_RESULT_LOG = {};
   }
 
-    // 停止 run
+  // 停止 run
   function stop(report_id, message) {
     RUNNER_STOP[report_id] = 1;
 
@@ -1081,7 +1118,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     initDefinitions = [], // 原始colletion
     RUNNER_RUNTIME_POINTER = 0;
 
-    // start run
+  // start run
   async function run(definitions, option = {}, initFlag = 0) {
     option = _.assign({
       project: {},
@@ -1095,7 +1132,17 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       requester: {}, // 发送模块的 options
     }, option);
 
-    let { RUNNER_REPORT_ID, scene, project, collection, iterationData, combined_id, test_events, default_report_name, user, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+    let { RUNNER_REPORT_ID, scene, project, cookies, collection, iterationData, combined_id, test_events, default_report_name, user, env, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+
+    if (typeof env === 'undefined') {
+      env = {
+        env_name,
+        env_pre_url,
+      };
+    } else {
+      env_name = env.env_name;
+      env_pre_url = env.env_pre_url;
+    }
 
     if (initFlag == 0) { // 初始化参数
       if (_.size(RUNNER_RESULT_LOG) > 0) { // 当前有任务时，拒绝新任务
@@ -1116,12 +1163,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       return;
     }
 
-        // 使用场景 auto_test/request
+    // 使用场景 auto_test/request
     if (_.isUndefined(scene)) {
       scene = 'auto_test';
     }
 
-        // 兼容 单接口请求 和 自动化测试
+    // 兼容 单接口请求 和 自动化测试
     if (!uuid.validate(combined_id)) {
       combined_id = '0';
     }
@@ -1144,15 +1191,24 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       };
     }
 
-    if (!_.isArray(iterationData)) {
-      iterationData = [];
+    if (!_.isArray(iterationData)) {  // fixed iterationData 兼容
+      if (_.isObject(iterationData)) {
+        const _interData = _.values(iterationData);
+        iterationData = _.isArray(_interData) ? _interData : [];
+      } else {
+        iterationData = [];
+      }
     }
 
     if (typeof iterationCount === 'undefined') {
       iterationCount = 1;
     }
 
-        // 设置sandbox的 environment变量 和 globals 变量
+    // 自动替换 Mock
+    const AUTO_CONVERT_FIELD_2_MOCK = typeof requester === 'object' && requester.AUTO_CONVERT_FIELD_2_MOCK > 0;
+
+
+    // 设置sandbox的 environment变量 和 globals 变量
     new Array('environment', 'globals').forEach((func) => {
       if (_.isObject(option[func]) && _.isObject(mySandbox.dynamicVariables[func]) && _.isFunction(mySandbox.dynamicVariables[func].set)) {
         for (const [key, value] of Object.entries(option[func])) {
@@ -1161,11 +1217,19 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       }
     });
 
-        // 发送对象
+    // 发送对象
     const request = new apipostRequest(_.isObject(requester) ? requester : {});
 
     if (sleep > 0) {
       sleepDelay(sleep);
+    }
+
+    // 全局断言
+    const _global_asserts = _.find(definitions, _.matchesProperty('type', 'assert'));
+    let _global_asserts_script = '';
+
+    if (_global_asserts && _.has(_global_asserts, 'data.content')) {
+      _global_asserts_script = _global_asserts.data.content;
     }
 
     if (_.isArray(definitions) && definitions.length > 0) {
@@ -1188,9 +1252,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           }
         }
 
-                // console.log(definition.event_id, definition.type)
+        // console.log(definition.event_id, definition.type)
         if (definition.enabled > 0) {
-                    // 设置沙盒的迭代变量
+          // 设置沙盒的迭代变量
           switch (definition.type) {
             case 'wait':
               if (definition.condition.sleep > 0) {
@@ -1198,7 +1262,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               }
               break;
             case 'script':
-            case 'assert':
+            // case 'assert':
               if (_.has(definition, 'data.content') && _.isString(definition.data.content)) {
                 mySandbox.execute(definition.data.content, definition, 'test', (err, res) => {
                   if (err && ignoreError < 1) {
@@ -1216,7 +1280,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             case 'api':
               if (_.has(definition, 'request') && _.isObject(definition.request)) {
                 let res = {};
-                                // 拼接全局参数、目录参数、以及脚本
+                // 拼接全局参数、目录参数、以及脚本
                 let _requestPara = {};
                 let _parent_ids = _.reverse(getParentTargetIDs(collection, definition.request.target_id));
                 let _requestBody = getItemFromCollection(collection, definition.request.target_id);
@@ -1231,13 +1295,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
 
                 new Array('header', 'body', 'query', 'auth', 'pre_script', 'test').forEach((_type) => {
-                                    // 参数
+                  // 参数
                   if (_.indexOf(['header', 'body', 'query'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = _type == 'header' ? {} : [];
                     }
 
-                                        // 全局参数
+                    // 全局参数
                     if (typeof project.request === 'object' && _.isArray(project.request[_type])) {
                       project.request[_type].forEach((item) => {
                         if (item.is_checked > 0 && _.trim(item.key) != '') {
@@ -1250,7 +1314,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       });
                     }
 
-                                        // 目录参数
+                    // 目录参数
                     if (_.isArray(_parent_ids) && _parent_ids.length > 0) {
                       _parent_ids.forEach((parent_id) => {
                         const _folder = getItemFromCollection(collection, parent_id);
@@ -1269,7 +1333,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       });
                     }
 
-                                        // 接口参数
+                    // 接口参数
                     if (_.has(definition, `request.request.${_type}.parameter`) && _.isArray(definition.request.request[_type].parameter)) {
                       definition.request.request[_type].parameter.forEach((item) => {
                         if (item.is_checked > 0 && _.trim(item.key) != '') {
@@ -1283,18 +1347,18 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     }
                   }
 
-                                    // 认证
+                  // 认证
                   if (_.indexOf(['auth'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = {};
                     }
 
-                                        // 全局认证
+                    // 全局认证
                     if (_.has(project, `request.['${_type}']`) && _.isObject(project.request[_type]) && project.request[_type].type != 'noauth') {
                       _.assign(_requestPara[_type], project.request[_type]);
                     }
 
-                                        // 目录认证
+                    // 目录认证
                     if (_.isArray(_parent_ids) && _parent_ids.length > 0) {
                       _parent_ids.forEach((parent_id) => {
                         const _folder = getItemFromCollection(collection, parent_id);
@@ -1305,26 +1369,26 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       });
                     }
 
-                                        // 接口认证
+                    // 接口认证
                     if (_.has(definition, `request.request.${_type}`) && _.isObject(definition.request.request[_type]) && definition.request.request[_type].type != 'noauth') {
                       _.assign(_requestPara[_type], definition.request.request[_type]);
                     }
                   }
 
-                                    // 脚本
+                  // 脚本
                   if (_.indexOf(['pre_script', 'test'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = '';
                     }
 
-                                        // 全局脚本， 已兼容旧版本
+                    // 全局脚本， 已兼容旧版本
                     if (_.has(project, `script.['${_type}']`) && _.isString(project.script[_type]) && project.script[`${_type}_switch`] > 0) {
                       _requestPara[_type] = `${_requestPara[_type]}\r\n${project.script[_type]}`;
                     } else if (_.has(project, `request.script.['${_type}']`) && _.isString(project.request.script[_type]) && project.request.script[`${_type}_switch`] > 0) {
                       _requestPara[_type] = `${_requestPara[_type]}\r\n${project.request.script[_type]}`;
                     }
 
-                                        // 目录脚本
+                    // 目录脚本
                     if (_.isArray(_parent_ids) && _parent_ids.length > 0) {
                       _parent_ids.forEach((parent_id) => {
                         const _folder = getItemFromCollection(collection, parent_id);
@@ -1335,7 +1399,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       });
                     }
 
-                                        // 接口脚本
+                    // 接口脚本
                     if (_.has(definition, `request.request.event.${_type}`) && _.isString(definition.request.request.event[_type])) {
                       _requestPara[_type] = `${_requestPara[_type]}\r\n${definition.request.request.event[_type]}`;
                     }
@@ -1357,7 +1421,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   datetime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
                 };
 
-                                // 执行预执行脚本
+                // 执行预执行脚本
                 if (_.has(_requestPara, 'pre_script') && _.isString(_requestPara.pre_script)) {
                   mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', (err, res) => {
                     if (err && ignoreError < 1) {
@@ -1368,20 +1432,20 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 let _request = _.cloneDeep(definition.request);
 
-                                // 替换 _requestPara 的参数变量
+                // 替换 _requestPara 的参数变量
                 new Array('header', 'query', 'body').forEach((type) => {
                   _requestPara[type] = _.values(_requestPara[type]);
                   _requestPara[type].map((item) => {
                     _.assign(item, {
-                      key: mySandbox.replaceIn(item.key),
-                      value: mySandbox.replaceIn(item.value),
+                      key: mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
+                      value: mySandbox.replaceIn(item.value, null, AUTO_CONVERT_FIELD_2_MOCK),
                     });
                   });
 
                   _.set(_request, `request.${type}.parameter`, _requestPara[type]);
                 });
 
-                                // 重新渲染请求参数
+                // 重新渲染请求参数
                 let _target = RUNNER_RESULT_LOG[definition.iteration_id];
 
                 if (typeof _target === 'object' && _.isObject(_target.beforeRequest)) {
@@ -1389,23 +1453,23 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     if (_.has(_request, `request.${type}.parameter`) && _.isArray(_target.beforeRequest[type])) {
                       _target.beforeRequest[type].forEach((_item) => {
                         if (_item.action == 'set') {
-                          const _itemPara = _.find(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key)));
+                          const _itemPara = _.find(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK)));
 
                           if (_itemPara) {
-                            _itemPara.value = mySandbox.replaceIn(_item.value);
+                            _itemPara.value = mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK);
                           } else {
                             _request.request[type].parameter.push({
                               description: '',
                               field_type: 'Text',
                               is_checked: '1',
-                              key: mySandbox.replaceIn(_item.key),
+                              key: mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
                               not_null: '1',
                               type: 'Text',
-                              value: mySandbox.replaceIn(_item.value),
+                              value: mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK),
                             });
                           }
                         } else if (_item.action == 'remove') {
-                          _.remove(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key)));
+                          _.remove(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK)));
                         }
                       });
                     }
@@ -1422,9 +1486,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       if (_rawParse) {
                         _target.beforeRequest[type].forEach((_item) => {
                           if (_item.action == 'set') {
-                            _.set(_rawParse, mySandbox.replaceIn(_item.key), mySandbox.replaceIn(_item.value));
+                            _.set(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK), mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK));
                           } else if (_item.action == 'remove') {
-                            _.unset(_rawParse, mySandbox.replaceIn(_item.key));
+                            _.unset(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK));
                           }
                         });
 
@@ -1435,18 +1499,18 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
 
                 if (_.isObject(_requestPara.auth[_requestPara.auth.type])) {
-                  _requestPara.auth[_requestPara.auth.type] = _.mapValues(_requestPara.auth[_requestPara.auth.type], val => mySandbox.replaceIn(val));
+                  _requestPara.auth[_requestPara.auth.type] = _.mapValues(_requestPara.auth[_requestPara.auth.type], val => mySandbox.replaceIn(val, null, AUTO_CONVERT_FIELD_2_MOCK));
 
                   _.set(_request, `request.auth.${_requestPara.auth.type}`, _requestPara.auth[_requestPara.auth.type]);
                 }
 
-                                // url 兼容
+                // url 兼容
                 let _url = _request.request.url ? _request.request.url : _request.url;
 
-                                // 拼接环境前置URl
+                // 拼接环境前置URl
                 if (_.isString(env_pre_url) && env_pre_url.length > 0) _url = env_pre_url + _url;
 
-                _url = mySandbox.replaceIn(_url);
+                _url = mySandbox.replaceIn(_url, null, AUTO_CONVERT_FIELD_2_MOCK);
 
                 if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
                   _url = `http://${_url}`;
@@ -1457,8 +1521,55 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 let _isHttpError = -1;
 
+                // cookie
+                // 已修复 cookie 无法使用的问题
+                if (typeof cookies === 'object' && _.has(cookies, 'switch') && _.has(cookies, 'data')) {
+                  if (cookies.switch > 0 && _.isArray(cookies.data)) {
+                    const _cookieArr = [];
+                    cookies.data.forEach((_cookie) => {
+                      if (typeof _cookie.name === 'undefined' && typeof _cookie.key === 'string') {
+                        _cookie.name = _cookie.key;
+                      }
+                      const cookieStr = validCookie.isvalid(_url, _cookie);
+                      if (cookieStr) {
+                        _cookieArr.push(cookieStr.cookie);
+                      }
+                    });
+
+                    if (_cookieArr.length > 0) {
+                      if (_.has(_request, 'request.header.parameter')) {
+                        const _targetHeaderCookie = _.find(_request.request.header.parameter, o => _.trim(_.toLower(o.key)) == 'cookie');
+
+                        if (_targetHeaderCookie && _targetHeaderCookie.is_checked > 0) {
+                          _targetHeaderCookie.value = `${_cookieArr.join('&')}&${_targetHeaderCookie.value}`;
+                        } else {
+                          _request.request.header.parameter.push({
+                            key: 'cookie',
+                            value: _cookieArr.join('&'),
+                            description: '',
+                            not_null: 1,
+                            field_type: 'String',
+                            type: 'Text',
+                            is_checked: 1,
+                          });
+                        }
+                      } else {
+                        _.set(_request, 'request.header.parameter', [{
+                          key: 'cookie',
+                          value: _cookieArr.join('&'),
+                          description: '',
+                          not_null: 1,
+                          field_type: 'String',
+                          type: 'Text',
+                          is_checked: 1,
+                        }]);
+                      }
+                    }
+                  }
+                }
+
                 try {
-                                    // 合并请求参数
+                  // 合并请求参数
                   res = await request.request(_request);
                 } catch (e) {
                   res = e;
@@ -1480,7 +1591,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   }
                 }
 
-                                // 优化返回体结构
+                // 优化返回体结构
                 let _response = _.cloneDeep(res);
 
                 if (_response.status == 'success' && _.isObject(_response.data.response)) {
@@ -1504,7 +1615,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   http_error: _isHttpError,
                 });
 
-                                // 发送console
+                // 发送console
 
                 if (scene != 'auto_test') { // / done
                   if (res.status === 'error') {
@@ -1559,8 +1670,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   }
                 }
 
-                                // 执行后执行脚本
+                // 执行后执行脚本
                 if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
+                  if (_.isString(_global_asserts_script) && _.trim(_global_asserts_script) != '') {
+                    _requestPara.test = `${_requestPara.test}\r\n${_global_asserts_script}`;
+                  }
+
                   mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', (err, res) => {
                     if (err && ignoreError < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
@@ -1591,7 +1706,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             case 'while':
               if (_.isArray(definition.children) && definition.children.length > 0) {
                 const end = Date.now() + parseInt(definition.condition.timeout);
-
+                console.log(11111, definition.condition, (returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value))));
                 while ((returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value)))) {
                   if (Date.now() > end) {
                     break;
@@ -1622,7 +1737,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             RUNNER_RUNTIME_POINTER++;
           }
 
-                    // 进度条
+          // 进度条
           if (RUNNER_TOTAL_COUNT >= RUNNER_RUNTIME_POINTER && scene == 'auto_test') {
             RUNNER_PROGRESS = _.floor(_.divide(RUNNER_RUNTIME_POINTER, RUNNER_TOTAL_COUNT), 2);
 
@@ -1635,12 +1750,16 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             });
           }
 
-                    // 完成
+          // 完成
           if (RUNNER_TOTAL_COUNT == RUNNER_RUNTIME_POINTER) {
             if (scene == 'auto_test') { // 自动化测试
-                            // 获取未跑的 event
+              // 获取未跑的 event
               let ignoreEvents = [];
               (function getIgnoreAllApis(initDefinitions) {
+                if (!_.isArray(initDefinitions)) {
+                  console.log(initDefinitions);
+                }
+
                 initDefinitions.forEach((item) => {
                   if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
                     const _iteration_id = uuid.v4();
@@ -1676,29 +1795,29 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 combined_id,
                 envs: {
                   globals: mySandbox.variablesScope.globals,
-                  environment: mySandbox.variablesScope.environment,
+                  environment: _.assign(mySandbox.variablesScope.environment, mySandbox.variablesScope.variables), // fix variables bug
                 },
                 ignore_events: ignoreEvents,
                 test_report: _runReport,
               });
 
-                            // console.log(_runReport)
-                            // 打印报告
+              // console.log(_runReport)
+              // 打印报告
               const reportTable = new Table({
                 style: { padding: 5, head: [], border: [] },
               });
 
               reportTable.push(
-                                [{ content: 'The result of API test'.bold.gray, colSpan: 4, hAlign: 'center' }],
-                                ['', { content: 'passed', hAlign: 'center' }, { content: 'failed', hAlign: 'center' }, { content: 'ignore', hAlign: 'center' }],
-                                [{ content: 'request', hAlign: 'left' }, { content: `${_runReport.http.passed}`.green, hAlign: 'center' }, { content: `${_runReport.http.failure}`.underline.red, hAlign: 'center' }, { content: `${_runReport.ignore_count}`, rowSpan: 2, hAlign: 'center', vAlign: 'center' }],
-                                [{ content: 'assertion', hAlign: 'left' }, { content: `${_runReport.assert.passed}`.green, hAlign: 'center' }, { content: `${_runReport.assert.failure}`.underline.red, hAlign: 'center' }],
-                                [{ content: `total number of api: ${_runReport.total_count}, ignore: ${_runReport.ignore_count}`, colSpan: 4, hAlign: 'left' }],
-                                [{ content: `total data received: ${_runReport.total_received_data} KB (approx)`, colSpan: 4, hAlign: 'left' }],
-                                [{ content: `total response time: ${_runReport.total_response_time} 毫秒, average response time: ${_runReport.average_response_time} 毫秒`, colSpan: 4, hAlign: 'left' }],
-                                [{ content: `total run duration: ${_runReport.long_time}`, colSpan: 4, hAlign: 'left' }],
-                                [{ content: 'Generated by apipost-cli ( https://github.com/Apipost-Team/apipost-cli )'.gray, colSpan: 4, hAlign: 'center' }],
-                            );
+                [{ content: 'The result of API test'.bold.gray, colSpan: 4, hAlign: 'center' }],
+                ['', { content: 'passed', hAlign: 'center' }, { content: 'failed', hAlign: 'center' }, { content: 'ignore', hAlign: 'center' }],
+                [{ content: 'request', hAlign: 'left' }, { content: `${_runReport.http.passed}`.green, hAlign: 'center' }, { content: `${_runReport.http.failure}`.underline.red, hAlign: 'center' }, { content: `${_runReport.ignore_count}`, rowSpan: 2, hAlign: 'center', vAlign: 'center' }],
+                [{ content: 'assertion', hAlign: 'left' }, { content: `${_runReport.assert.passed}`.green, hAlign: 'center' }, { content: `${_runReport.assert.failure}`.underline.red, hAlign: 'center' }],
+                [{ content: `total number of api: ${_runReport.total_count}, ignore: ${_runReport.ignore_count}`, colSpan: 4, hAlign: 'left' }],
+                [{ content: `total data received: ${_runReport.total_received_data} KB (approx)`, colSpan: 4, hAlign: 'left' }],
+                [{ content: `total response time: ${_runReport.total_response_time} 毫秒, average response time: ${_runReport.average_response_time} 毫秒`, colSpan: 4, hAlign: 'left' }],
+                [{ content: `total run duration: ${_runReport.long_time}`, colSpan: 4, hAlign: 'left' }],
+                [{ content: 'Generated by apipost-cli ( https://github.com/Apipost-Team/apipost-cli )'.gray, colSpan: 4, hAlign: 'center' }],
+              );
 
               cliConsole(reportTable.toString());
 
@@ -1726,17 +1845,17 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 });
 
                 failedTable.push(
-                                    [{ content: '', colSpan: 2 }],
-                                    [{ content: '#'.underline.red, hAlign: 'center' }, { content: 'failure'.underline.red, hAlign: 'left' }, { content: 'detail'.underline.red, hAlign: 'left' }],
-                                );
+                  [{ content: '', colSpan: 2 }],
+                  [{ content: '#'.underline.red, hAlign: 'center' }, { content: 'failure'.underline.red, hAlign: 'left' }, { content: 'detail'.underline.red, hAlign: 'left' }],
+                );
 
                 _.forEach(_runReport.assert_errors, (item) => {
                   _.forEach(item.assert, (assert) => {
                     cliCounter++;
                     failedTable.push(
-                                            [{ content: '', colSpan: 2 }],
-                                            [{ content: `${cliCounter}.`, hAlign: 'center' }, { content: '断言错误', hAlign: 'left' }, { content: `${`${assert.expect}` + '\n'}${`${assert.result}`.gray}`, hAlign: 'left' }],
-                                        );
+                      [{ content: '', colSpan: 2 }],
+                      [{ content: `${cliCounter}.`, hAlign: 'center' }, { content: '断言错误', hAlign: 'left' }, { content: `${`${assert.expect}` + '\n'}${`${assert.result}`.gray}`, hAlign: 'left' }],
+                    );
                   });
                 });
 
@@ -1751,9 +1870,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 action: 'http_complate',
                 envs: {
                   globals: mySandbox.variablesScope.globals,
-                  environment: mySandbox.variablesScope.environment,
+                  environment: _.assign(mySandbox.variablesScope.environment, mySandbox.variablesScope.variables), // fix variables bug
                 },
                 data: {
+                  visualizer_html: _http.visualizer_html, // fixed 可视化 bug
                   assert: _http.assert,
                   target_id: _http.target_id,
                   response: _http.response,
@@ -1775,7 +1895,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     }
   }
 
-    // 构造一个执行对象
+  // 构造一个执行对象
   Object.defineProperty(this, 'run', {
     value: run,
   });
