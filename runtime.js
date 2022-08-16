@@ -941,15 +941,15 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     const eventResultStatus = {};
 
     Object.values(log).forEach((item) => {
-      console.log(item.assert);
+      // console.log(item.assert);
       // 计算各个event的状态 [ignore, failure, passed]
       if (_.isArray(initDefinitions)) {
         const parent_ids = getInitDefinitionsParentIDs(item.event_id, initDefinitions);
 
         if (_.find(item.assert, _.matchesProperty('status', 'error'))) {
-          item.assert_error == 1;
+          item.assert_error = 1;
         } else {
-          item.assert_error == -1;
+          item.assert_error = -1;
         }
 
         if (item.http_error == 1 || _.find(item.assert, _.matchesProperty('status', 'error'))) { // failure
@@ -1262,7 +1262,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               }
               break;
             case 'script':
-            // case 'assert':
+              // case 'assert':
               if (_.has(definition, 'data.content') && _.isString(definition.data.content)) {
                 mySandbox.execute(definition.data.content, definition, 'test', (err, res) => {
                   if (err && ignoreError < 1) {
@@ -1545,7 +1545,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         } else {
                           _request.request.header.parameter.push({
                             key: 'cookie',
-                            value: _cookieArr.join('&'),
+                            value: _cookieArr.join(';'), // fix cookie bug
                             description: '',
                             not_null: 1,
                             field_type: 'String',
@@ -1556,7 +1556,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       } else {
                         _.set(_request, 'request.header.parameter', [{
                           key: 'cookie',
-                          value: _cookieArr.join('&'),
+                          value: _cookieArr.join(';'), // fix cookie bug
                           description: '',
                           not_null: 1,
                           field_type: 'String',
@@ -1683,7 +1683,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   });
                 }
 
+                // fix bug
                 if (definition.event_id != '0' && scene == 'auto_test') {
+                  if (_.find(_target.assert, _.matchesProperty('status', 'error'))) {
+                    _target.assert_error = 1;
+                  } else {
+                    _target.assert_error = -1;
+                  }
+
                   emitRuntimeEvent({
                     action: 'current_event_id',
                     combined_id,
