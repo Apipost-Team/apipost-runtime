@@ -1194,7 +1194,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     if (!_.isArray(iterationData)) {  // fixed iterationData 兼容
       if (_.isObject(iterationData)) {
         const _interData = _.values(iterationData);
-        iterationData = _.isArray(_interData) ? _interData[0] : []; // fix bug
+        iterationData = _.isArray(_interData) && _.isArray(_interData[0]) ? _interData[0] : []; // fix bug
       } else {
         iterationData = [];
       }
