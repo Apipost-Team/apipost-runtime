@@ -24,6 +24,7 @@ const apipostRequest = require('apipost-send'),
   JSONbig = require('json-bigint'),
   aTools = require('apipost-tools'),
   validCookie = require('check-valid-cookie'),
+  urlJoin = require('url-join'), // + new add 必须 4.0.1版本
   artTemplate = require('art-template');
 
 // cli console
@@ -87,7 +88,7 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
         sleep: sleep > 0 ? sleep : 0,
       },
       enabled: 1,
-      RUNNER_TOTAL_COUNT: definition.length * (iterationCount > 0 ? iterationCount : 1),
+      RUNNER_TOTAL_COUNT: _.size(_.filter(definition, _.matchesProperty('enabled', 1))) * (iterationCount > 0 ? iterationCount : 1),
       children: _.cloneDeep(definition),
     })],
   });
@@ -747,7 +748,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         typeof callback === 'function' && callback();
       } catch (err) {
-        console.log(err);
         emitTargetPara({
           action: 'SCRIPT_ERROR',
           eventName,
@@ -783,7 +783,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
   function returnBoolean(exp, compare, value) {
     let bool = false;
 
-    if (exp == '') {
+    if (exp === '') { // fix bug
       return compare == 'null';
     }
 
@@ -1148,7 +1148,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       if (_.size(RUNNER_RESULT_LOG) > 0) { // 当前有任务时，拒绝新任务
         return;
       }
-
+      // console.log(definitions, dayjs().format('YYYY-MM-DD HH:mm:ss'));
       runInit();
       RUNNER_STOP[RUNNER_REPORT_ID] = 0;
       RUNNER_TOTAL_COUNT = typeof definitions[0] === 'object' ? definitions[0].RUNNER_TOTAL_COUNT : 0;
@@ -1194,7 +1194,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     if (!_.isArray(iterationData)) {  // fixed iterationData 兼容
       if (_.isObject(iterationData)) {
         const _interData = _.values(iterationData);
-        iterationData = _.isArray(_interData) ? _interData : [];
+        iterationData = _.isArray(_interData) ? _interData[0] : []; // fix bug
       } else {
         iterationData = [];
       }
@@ -1231,7 +1231,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     if (_global_asserts && _.has(_global_asserts, 'data.content')) {
       _global_asserts_script = _global_asserts.data.content;
     }
-
+    // console.log(iterationData);
     if (_.isArray(definitions) && definitions.length > 0) {
       for (let i = 0; i < definitions.length; i++) {
         const definition = definitions[i];
@@ -1252,7 +1252,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           }
         }
 
-        // console.log(definition.event_id, definition.type)
         if (definition.enabled > 0) {
           // 设置沙盒的迭代变量
           switch (definition.type) {
@@ -1508,7 +1507,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 let _url = _request.request.url ? _request.request.url : _request.url;
 
                 // 拼接环境前置URl
-                if (_.isString(env_pre_url) && env_pre_url.length > 0) _url = env_pre_url + _url;
+                if (_.isString(env_pre_url) && env_pre_url.length > 0) _url = urlJoin(env_pre_url, _url);
 
                 _url = mySandbox.replaceIn(_url, null, AUTO_CONVERT_FIELD_2_MOCK);
 
@@ -1704,6 +1703,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               }
               break;
             case 'for':
+              // console.log('for', definition);
               if (_.isArray(definition.children) && definition.children.length > 0) {
                 for (let i = 0; i < mySandbox.replaceIn(definition.condition.limit); i++) {
                   await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1);
@@ -1713,7 +1713,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             case 'while':
               if (_.isArray(definition.children) && definition.children.length > 0) {
                 const end = Date.now() + parseInt(definition.condition.timeout);
-                console.log(11111, definition.condition, (returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value))));
                 while ((returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value)))) {
                   if (Date.now() > end) {
                     break;
@@ -1743,7 +1742,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           if (initFlag <= 1) {
             RUNNER_RUNTIME_POINTER++;
           }
-
+          // console.log(RUNNER_TOTAL_COUNT, definition.event_id, definition.type);
           // 进度条
           if (RUNNER_TOTAL_COUNT >= RUNNER_RUNTIME_POINTER && scene == 'auto_test') {
             RUNNER_PROGRESS = _.floor(_.divide(RUNNER_RUNTIME_POINTER, RUNNER_TOTAL_COUNT), 2);
@@ -1795,7 +1794,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 });
               }(initDefinitions));
 
-              const _runReport = calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name });
+              const _runReport = calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name, env });
 
               emitRuntimeEvent({
                 action: 'complate',
