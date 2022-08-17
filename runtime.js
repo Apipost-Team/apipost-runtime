@@ -1,3 +1,5 @@
+const { type } = require('os');
+
 const apipostRequest = require('apipost-send'),
   Table = require('cli-table3'),
   Cookie = require('cookie'),
@@ -11,13 +13,14 @@ const apipostRequest = require('apipost-send'),
   CryptoJS = require('crypto-js'),
   jsonpath = require('jsonpath'),
   x2js = require('x2js'),
-  { JSDOM } = require('jsdom'),
-  { window } = new JSDOM(''),
-  $ = require('jquery')(window),
+  // { JSDOM } = require('jsdom'),
+  // { window } = new JSDOM(''),
+  // $ = require('jquery')(window),
   // JSEncrypt = require("jsencrypt"),
   moment = require('moment'),
   dayjs = require('dayjs'),
   vm2 = require('vm2'),
+  // ajax = require('@fdaciuk/ajax'),
   colors = require('colors'),
   ASideTools = require('apipost-inside-tools'),
   stripJsonComments = require('strip-json-comments'),
@@ -33,7 +36,7 @@ const cliConsole = function (args) {
     console.log(args);
   }
 };
-// console.log('ajax', jQuery.ajax);
+
 const Collection = function ApipostCollection(definition, option = { iterationCount: 1, sleep: 0 }) {
   const { iterationCount, sleep } = option;
 
@@ -147,6 +150,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       Object.keys(variablesScope).forEach((type) => {
         _.assign(allVariables, variablesScope[type]);
       });
+
+      // console.log(allVariables);
       return allVariables;
     }
 
@@ -257,7 +262,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
     // 变量替换
     function replaceIn(variablesStr, type, withMock = false) {
-      let allVariables = getAllInsideVariables();
+      // let allVariables = getAllInsideVariables();
+      let allVariables = {};
       _.assign(allVariables, getAllDynamicVariables(type));
 
       if (withMock) {
@@ -274,9 +280,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
       variablesStr = _.replace(variablesStr, _regExp, (key) => {
         const reStr = allVariables[_.replace(key, /[{}]/gi, '')];
-        return reStr || key;
-      });
 
+        if (typeof reStr !== 'undefined') {
+          return reStr;
+        }
+        return key;
+      });
+      // console.log('allVariables', variablesStr, _regExp);
       allVariables = null;
       return variablesStr;
     }
@@ -501,6 +511,27 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             return scope.environment;
           },
         });
+
+        Object.defineProperty(pm.environment, 'getName', {
+          configurable: true,
+          value() {
+            return scope.env_name;
+          },
+        });
+
+        Object.defineProperty(pm.environment, 'getPreUrl', {
+          configurable: true,
+          value() {
+            return scope.env_pre_url;
+          },
+        });
+
+        Object.defineProperty(pm.environment, 'getCollection', {
+          configurable: true,
+          value() {
+            return scope.environment;
+          },
+        });
       }
 
       // 请求参数相关
@@ -699,10 +730,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
       // 执行
       try {
+        const $ = {};
+
         $.md5 = function (str) { // 兼容旧版
           return CryptoJS.MD5(str).toString();
         };
 
+        $.ajax = function (option) {};
         (new vm2.VM({
           timeout: 5000,
           sandbox: {
@@ -782,7 +816,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
   // 根据测试条件返回布尔值
   function returnBoolean(exp, compare, value) {
     let bool = false;
-
+    // console.log('returnBoolean', exp, compare, value);
     if (exp === '') { // fix bug
       return compare == 'null';
     }
@@ -1132,7 +1166,15 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       requester: {}, // 发送模块的 options
     }, option);
 
-    let { RUNNER_REPORT_ID, scene, project, cookies, collection, iterationData, combined_id, test_events, default_report_name, user, env, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, sleep, requester } = option;
+    let { RUNNER_REPORT_ID, scene, project, cookies, collection, iterationData, combined_id, test_events, default_report_name, user, env, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, ignore_error, enable_sandbox, sleep, requester } = option;
+
+    if (typeof ignoreError === 'undefined') {
+      ignoreError = ignore_error ? !!ignore_error : 0;
+    } else {
+      ignoreError = !!ignoreError;
+    }
+    ignore_error = ignoreError ? 1 : 0;
+    enable_sandbox = typeof enable_sandbox === 'undefined' ? 0 : 1;
 
     if (typeof env === 'undefined') {
       env = {
@@ -1763,7 +1805,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               let ignoreEvents = [];
               (function getIgnoreAllApis(initDefinitions) {
                 if (!_.isArray(initDefinitions)) {
-                  console.log(initDefinitions);
+                  // console.log(initDefinitions);
                 }
 
                 initDefinitions.forEach((item) => {
@@ -1799,6 +1841,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               emitRuntimeEvent({
                 action: 'complate',
                 combined_id,
+                ignore_error,
+                enable_sandbox,
                 envs: {
                   globals: mySandbox.variablesScope.globals,
                   environment: _.assign(mySandbox.variablesScope.environment, mySandbox.variablesScope.variables), // fix variables bug
