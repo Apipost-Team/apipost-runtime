@@ -758,6 +758,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             ...{ moment },
             ...{ dayjs },
             console: consoleFn,
+            print: consoleFn.log,
             xml2json(xml) {
               return (new x2js()).xml2js(xml);
             },
