@@ -11,9 +11,9 @@ const apipostRequest = require('apipost-send'),
   CryptoJS = require('crypto-js'),
   jsonpath = require('jsonpath'),
   x2js = require('x2js'),
-  // { JSDOM } = require('jsdom'),
-  // { window } = new JSDOM(''),
-  // $ = require('jquery')(window),
+  { JSDOM } = require('jsdom'),
+  { window } = new JSDOM(''),
+  $ = require('jquery')(window),
   // JSEncrypt = require("jsencrypt"),
   moment = require('moment'),
   dayjs = require('dayjs'),
@@ -361,7 +361,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         if (item) {
           item.visualizer_html = { status, html };
-          console.log(item.visualizer_html);
         }
       }
     }
@@ -728,13 +727,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
       // 执行
       try {
-        const $ = {};
+        // const $ = {};
 
         $.md5 = function (str) { // 兼容旧版
           return CryptoJS.MD5(str).toString();
         };
 
-        $.ajax = function (option) { };
+        // $.ajax = function (option) { };
         (new vm2.VM({
           timeout: 5000,
           sandbox: {
@@ -766,7 +765,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             $,
             apt: pm,
             request: pm.request ? _.cloneDeep(pm.request) : {},
-            response: pm.response ? _.assign(_.cloneDeep(pm.response), { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
+            response: pm.response ? _.assign(pm.response, { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
             expect: chai.expect,
             sleep(ms) {
               const end = Date.now() + parseInt(ms);
@@ -778,8 +777,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             },
           },
         })).run(new vm2.VMScript(code));
-
-        typeof callback === 'function' && callback();
+        typeof callback === 'function' && callback(null, pm.response);
       } catch (err) {
         emitTargetPara({
           action: 'SCRIPT_ERROR',
@@ -1746,9 +1744,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     _requestPara.test = `${_requestPara.test}\r\n${_global_asserts_script}`;
                   }
 
-                  mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', (err, res) => {
+                  mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', (err, exec_res) => {
                     if (err && ignoreError < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
+                    } else if (_.has(exec_res, 'raw.responseText') && _.has(res, 'data.response.raw.responseText') && exec_res.raw.responseText != res.data.response.raw.responseText) {
+                      _.set(_response, 'data.response.changeBody', exec_res.raw.responseText);
                     }
                   });
                 }
