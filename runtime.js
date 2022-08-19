@@ -260,6 +260,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
     // 变量替换
     function replaceIn(variablesStr, type, withMock = false) {
+      if(!_.isArray(variablesStr)){ // fix bug
+        return variablesStr;
+      }
+
       // let allVariables = getAllInsideVariables();
       let allVariables = {};
       _.assign(allVariables, getAllDynamicVariables(type));
