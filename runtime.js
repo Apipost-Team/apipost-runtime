@@ -1,3 +1,4 @@
+const { forEach } = require('lodash');
 const { type } = require('os');
 
 const apipostRequest = require('apipost-send'),
@@ -736,7 +737,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           return CryptoJS.MD5(str).toString();
         };
 
-        $.ajax = function (option) {};
+        $.ajax = function (option) { };
         (new vm2.VM({
           timeout: 5000,
           sandbox: {
@@ -1336,9 +1337,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   _requestBody = null;
                 }
 
-                new Array('header', 'body', 'query', 'auth', 'pre_script', 'test').forEach((_type) => {
+                new Array('header', 'body', 'query', 'auth', 'pre_script', 'test', 'resful').forEach((_type) => {
                   // 参数
-                  if (_.indexOf(['header', 'body', 'query'], _type) > -1) {
+                  if (_.indexOf(['header', 'body', 'query', 'resful'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = _type == 'header' ? {} : [];
                     }
@@ -1416,6 +1417,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       _.assign(_requestPara[_type], definition.request.request[_type]);
                     }
                   }
+                  // console.log(_requestPara);
+                  // mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK)
 
                   // 脚本
                   if (_.indexOf(['pre_script', 'test'], _type) > -1) {
@@ -1475,7 +1478,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 let _request = _.cloneDeep(definition.request);
 
                 // 替换 _requestPara 的参数变量
-                new Array('header', 'query', 'body').forEach((type) => {
+                new Array('header', 'query', 'body', 'resful').forEach((type) => {
                   _requestPara[type] = _.values(_requestPara[type]);
                   _requestPara[type].map((item) => {
                     _.assign(item, {
@@ -1484,10 +1487,21 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     });
                   });
 
+                  if (type == 'body' && _.has(_request, 'request.body.raw')) {
+                    _request.request.body.raw = mySandbox.replaceIn(_request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK);
+                  }
+
                   _.set(_request, `request.${type}.parameter`, _requestPara[type]);
                 });
 
-                // 重新渲染请求参数
+                // 认证 fixed bug
+                if (_.isObject(_requestPara.auth) && _.isString(_requestPara.auth.type) && _.isObject(_requestPara.auth[_requestPara.auth.type])) {
+                  Object.keys(_requestPara.auth[_requestPara.auth.type]).forEach((key) => {
+                    _requestPara.auth[_requestPara.auth.type][key] = mySandbox.replaceIn(_requestPara.auth[_requestPara.auth.type][key], null, AUTO_CONVERT_FIELD_2_MOCK);
+                  });
+                }
+
+                // 重新渲染请求参数_request.request.body.raw = mySandbox.replaceIn(_request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK);
                 let _target = RUNNER_RESULT_LOG[definition.iteration_id];
 
                 if (typeof _target === 'object' && _.isObject(_target.beforeRequest)) {
@@ -1548,13 +1562,30 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 // url 兼容
                 let _url = _request.request.url ? _request.request.url : _request.url;
-
-                // 拼接环境前置URl
-                if (_.isString(env_pre_url) && env_pre_url.length > 0) _url = urlJoin(env_pre_url, _url);
-
                 _url = mySandbox.replaceIn(_url, null, AUTO_CONVERT_FIELD_2_MOCK);
 
-                if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
+                // fixed bug add 替换路径变量
+                if (_.isArray(_requestPara.resful) && _requestPara.resful.length > 0) {
+                  _requestPara.resful.forEach((_resful) => {
+                    _resful.key = _.trim(_resful.key);
+
+                    if (_resful.is_checked > 0 && _resful.key !== '') {
+                      _url = _.replace(_url, `:${_resful.key}`, _resful.value);
+                    }
+                  });
+                }
+
+                // 环境前缀 fix bug
+                let _pre_url = mySandbox.replaceIn(env_pre_url, null, AUTO_CONVERT_FIELD_2_MOCK);
+
+                // 拼接环境前置URl
+                if (_.isString(_pre_url) && _pre_url.length > 0) {
+                  if (!_.startsWith(_.toLower(_pre_url), 'https://') && !_.startsWith(_.toLower(_pre_url), 'http://')) {
+                    _pre_url = `http://${_pre_url}`;
+                  }
+
+                  _url = urlJoin(_pre_url, _url);
+                } else if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
                   _url = `http://${_url}`;
                 }
 
@@ -1785,7 +1816,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           if (initFlag <= 1) {
             RUNNER_RUNTIME_POINTER++;
           }
-          // console.log(RUNNER_TOTAL_COUNT, definition.event_id, definition.type);
+
           // 进度条
           if (RUNNER_TOTAL_COUNT >= RUNNER_RUNTIME_POINTER && scene == 'auto_test') {
             RUNNER_PROGRESS = _.floor(_.divide(RUNNER_RUNTIME_POINTER, RUNNER_TOTAL_COUNT), 2);
