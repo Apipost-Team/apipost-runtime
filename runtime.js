@@ -1,6 +1,3 @@
-const { forEach } = require('lodash');
-const { type } = require('os');
-
 const apipostRequest = require('apipost-send'),
   Table = require('cli-table3'),
   Cookie = require('cookie'),
