@@ -1,5 +1,3 @@
-const { type } = require('os');
-
 const apipostRequest = require('apipost-send'),
   Table = require('cli-table3'),
   Cookie = require('cookie'),
@@ -13,9 +11,9 @@ const apipostRequest = require('apipost-send'),
   CryptoJS = require('crypto-js'),
   jsonpath = require('jsonpath'),
   x2js = require('x2js'),
-  // { JSDOM } = require('jsdom'),
-  // { window } = new JSDOM(''),
-  // $ = require('jquery')(window),
+  { JSDOM } = require('jsdom'),
+  { window } = new JSDOM(''),
+  $ = require('jquery')(window),
   // JSEncrypt = require("jsencrypt"),
   moment = require('moment'),
   dayjs = require('dayjs'),
@@ -363,7 +361,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         if (item) {
           item.visualizer_html = { status, html };
-          console.log(item.visualizer_html);
         }
       }
     }
@@ -730,13 +727,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
       // 执行
       try {
-        const $ = {};
+        // const $ = {};
 
         $.md5 = function (str) { // 兼容旧版
           return CryptoJS.MD5(str).toString();
         };
 
-        $.ajax = function (option) {};
+        // $.ajax = function (option) { };
         (new vm2.VM({
           timeout: 5000,
           sandbox: {
@@ -758,6 +755,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             ...{ moment },
             ...{ dayjs },
             console: consoleFn,
+            print: consoleFn.log,
             xml2json(xml) {
               return (new x2js()).xml2js(xml);
             },
@@ -767,7 +765,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             $,
             apt: pm,
             request: pm.request ? _.cloneDeep(pm.request) : {},
-            response: pm.response ? _.assign(_.cloneDeep(pm.response), { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
+            response: pm.response ? _.assign(pm.response, { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
             expect: chai.expect,
             sleep(ms) {
               const end = Date.now() + parseInt(ms);
@@ -779,8 +777,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             },
           },
         })).run(new vm2.VMScript(code));
-
-        typeof callback === 'function' && callback();
+        typeof callback === 'function' && callback(null, pm.response);
       } catch (err) {
         emitTargetPara({
           action: 'SCRIPT_ERROR',
@@ -1335,9 +1332,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   _requestBody = null;
                 }
 
-                new Array('header', 'body', 'query', 'auth', 'pre_script', 'test').forEach((_type) => {
+                new Array('header', 'body', 'query', 'auth', 'pre_script', 'test', 'resful').forEach((_type) => {
                   // 参数
-                  if (_.indexOf(['header', 'body', 'query'], _type) > -1) {
+                  if (_.indexOf(['header', 'body', 'query', 'resful'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = _type == 'header' ? {} : [];
                     }
@@ -1415,6 +1412,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       _.assign(_requestPara[_type], definition.request.request[_type]);
                     }
                   }
+                  // console.log(_requestPara);
+                  // mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK)
 
                   // 脚本
                   if (_.indexOf(['pre_script', 'test'], _type) > -1) {
@@ -1474,19 +1473,37 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 let _request = _.cloneDeep(definition.request);
 
                 // 替换 _requestPara 的参数变量
-                new Array('header', 'query', 'body').forEach((type) => {
+                new Array('header', 'query', 'body', 'resful').forEach((type) => {
                   _requestPara[type] = _.values(_requestPara[type]);
                   _requestPara[type].map((item) => {
-                    _.assign(item, {
-                      key: mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
-                      value: mySandbox.replaceIn(item.value, null, AUTO_CONVERT_FIELD_2_MOCK),
-                    });
+                    if (item.type == 'File') {
+                      _.assign(item, {
+                        key: mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
+                        value: item.value,
+                      });
+                    } else {
+                      _.assign(item, {
+                        key: mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
+                        value: mySandbox.replaceIn(item.value, null, AUTO_CONVERT_FIELD_2_MOCK),
+                      });
+                    }
                   });
+
+                  if (type == 'body' && _.has(_request, 'request.body.raw')) {
+                    _request.request.body.raw = mySandbox.replaceIn(_request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK);
+                  }
 
                   _.set(_request, `request.${type}.parameter`, _requestPara[type]);
                 });
 
-                // 重新渲染请求参数
+                // 认证 fixed bug
+                if (_.isObject(_requestPara.auth) && _.isString(_requestPara.auth.type) && _.isObject(_requestPara.auth[_requestPara.auth.type])) {
+                  Object.keys(_requestPara.auth[_requestPara.auth.type]).forEach((key) => {
+                    _requestPara.auth[_requestPara.auth.type][key] = mySandbox.replaceIn(_requestPara.auth[_requestPara.auth.type][key], null, AUTO_CONVERT_FIELD_2_MOCK);
+                  });
+                }
+
+                // 重新渲染请求参数_request.request.body.raw = mySandbox.replaceIn(_request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK);
                 let _target = RUNNER_RESULT_LOG[definition.iteration_id];
 
                 if (typeof _target === 'object' && _.isObject(_target.beforeRequest)) {
@@ -1547,13 +1564,30 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 // url 兼容
                 let _url = _request.request.url ? _request.request.url : _request.url;
-
-                // 拼接环境前置URl
-                if (_.isString(env_pre_url) && env_pre_url.length > 0) _url = urlJoin(env_pre_url, _url);
-
                 _url = mySandbox.replaceIn(_url, null, AUTO_CONVERT_FIELD_2_MOCK);
 
-                if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
+                // fixed bug add 替换路径变量
+                if (_.isArray(_requestPara.resful) && _requestPara.resful.length > 0) {
+                  _requestPara.resful.forEach((_resful) => {
+                    _resful.key = _.trim(_resful.key);
+
+                    if (_resful.is_checked > 0 && _resful.key !== '') {
+                      _url = _.replace(_url, `:${_resful.key}`, _resful.value);
+                    }
+                  });
+                }
+
+                // 环境前缀 fix bug
+                let _pre_url = mySandbox.replaceIn(env_pre_url, null, AUTO_CONVERT_FIELD_2_MOCK);
+
+                // 拼接环境前置URl
+                if (_.isString(_pre_url) && _pre_url.length > 0) {
+                  if (!_.startsWith(_.toLower(_pre_url), 'https://') && !_.startsWith(_.toLower(_pre_url), 'http://')) {
+                    _pre_url = `http://${_pre_url}`;
+                  }
+
+                  _url = urlJoin(_pre_url, _url);
+                } else if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
                   _url = `http://${_url}`;
                 }
 
@@ -1717,9 +1751,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     _requestPara.test = `${_requestPara.test}\r\n${_global_asserts_script}`;
                   }
 
-                  mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', (err, res) => {
+                  mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', (err, exec_res) => {
                     if (err && ignoreError < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
+                    } else if (_.has(exec_res, 'raw.responseText') && _.has(res, 'data.response.raw.responseText') && exec_res.raw.responseText != res.data.response.raw.responseText) {
+                      _.set(_response, 'data.response.changeBody', exec_res.raw.responseText);
                     }
                   });
                 }
@@ -1784,7 +1820,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           if (initFlag <= 1) {
             RUNNER_RUNTIME_POINTER++;
           }
-          // console.log(RUNNER_TOTAL_COUNT, definition.event_id, definition.type);
+
           // 进度条
           if (RUNNER_TOTAL_COUNT >= RUNNER_RUNTIME_POINTER && scene == 'auto_test') {
             RUNNER_PROGRESS = _.floor(_.divide(RUNNER_RUNTIME_POINTER, RUNNER_TOTAL_COUNT), 2);
