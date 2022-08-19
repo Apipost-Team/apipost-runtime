@@ -1476,10 +1476,17 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 new Array('header', 'query', 'body', 'resful').forEach((type) => {
                   _requestPara[type] = _.values(_requestPara[type]);
                   _requestPara[type].map((item) => {
-                    _.assign(item, {
-                      key: mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
-                      value: mySandbox.replaceIn(item.value, null, AUTO_CONVERT_FIELD_2_MOCK),
-                    });
+                    if (item.type == 'File') {
+                      _.assign(item, {
+                        key: mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
+                        value: item.value,
+                      });
+                    } else {
+                      _.assign(item, {
+                        key: mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
+                        value: mySandbox.replaceIn(item.value, null, AUTO_CONVERT_FIELD_2_MOCK),
+                      });
+                    }
                   });
 
                   if (type == 'body' && _.has(_request, 'request.body.raw')) {
