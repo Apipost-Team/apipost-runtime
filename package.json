@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/Apipost-Team/apipost-runtime#readme",
   "dependencies": {
+    "ajax-for-node": "^1.0.8",
     "apipost-inside-tools": "^0.1.5",
     "apipost-send": "^0.0.26",
     "apipost-tools": "^0.0.19",
