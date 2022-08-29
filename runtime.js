@@ -834,16 +834,16 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         bool = exp != value;
         break;
       case 'gt':
-        bool = _.gt(exp, value);
+        bool = _.gt(Number(exp), Number(value));
         break;
       case 'gte':
-        bool = _.gte(exp, value);
+        bool = _.gte(Number(exp), Number(value));
         break;
       case 'lt':
-        bool = _.lt(exp, value);
+        bool = _.lt(Number(exp), Number(value));
         break;
       case 'lte':
-        bool = _.lte(exp, value);
+        bool = _.lte(Number(exp), Number(value));
         break;
       case 'includes':
         bool = _.includes(exp, value);
