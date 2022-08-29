@@ -11,9 +11,10 @@ const apipostRequest = require('apipost-send'),
   CryptoJS = require('crypto-js'),
   jsonpath = require('jsonpath'),
   x2js = require('x2js'),
-  { JSDOM } = require('jsdom'),
-  { window } = new JSDOM(''),
-  $ = require('jquery')(window),
+  // { JSDOM } = require('jsdom'),
+  // { window } = new JSDOM(''),
+  $ = require('jquery'),
+  nodeAjax = require('ajax-for-node'), // new module on 0829
   // JSEncrypt = require("jsencrypt"),
   moment = require('moment'),
   dayjs = require('dayjs'),
@@ -260,7 +261,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
     // 变量替换
     function replaceIn(variablesStr, type, withMock = false) {
-      if(!_.isString(variablesStr)){ // fix bug
+      if (!_.isString(variablesStr)) { // fix bug
         return variablesStr;
       }
 
@@ -392,7 +393,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
          *
          * callback 回调
      * */
-    function execute(code, scope, eventName, callback) {
+    async function execute(code, scope, eventName, callback) {
       scope = _.isPlainObject(scope) ? _.cloneDeep(scope) : {};
 
       // 初始化数据库中的当前变量值 init
@@ -412,8 +413,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         if (_.indexOf(['request', 'response'], key) > -1) {
           switch (key) {
             case 'request':
-              if (_.has(scope, `response.data.${key}`) && _.isObject(scope.response.data[key])) {
-                Object.defineProperty(scope.response.data[key], 'to', {
+              // console.log(scope.script_request);
+              if (_.has(scope, 'script_request') && _.isObject(scope.script_request)) {
+                Object.defineProperty(scope.script_request, 'to', {
                   get() {
                     return chai.expect(this).to;
                   },
@@ -421,7 +423,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 Object.defineProperty(pm, key, {
                   configurable: true,
-                  value: scope.response.data[key],
+                  value: scope.script_request,
                 });
               }
               break;
@@ -682,7 +684,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       // 发送方法
       Object.defineProperty(pm, 'sendRequest', {
         configurable: true,
-        value: new apipostRequest(),
+        value: nodeAjax, // fix bug
       });
 
       // 可视化
@@ -737,10 +739,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           return CryptoJS.MD5(str).toString();
         };
 
-        // $.ajax = function (option) { };
-        (new vm2.VM({
+        $.ajax = nodeAjax; // fix bug
+
+        await (new vm2.VM({
           timeout: 5000,
           sandbox: {
+            ...{ nodeAjax },
             ...{ pm },
             ...{ chai },
             ...{ emitAssertResult },
@@ -1306,7 +1310,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             case 'script':
               // case 'assert':
               if (_.has(definition, 'data.content') && _.isString(definition.data.content)) {
-                mySandbox.execute(definition.data.content, definition, 'test', (err, res) => {
+                await mySandbox.execute(definition.data.content, definition, 'test', (err, res) => {
                   if (err && ignoreError < 1) {
                     stop(RUNNER_REPORT_ID, String(err));
                   }
@@ -1450,6 +1454,74 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   }
                 });
 
+                let _timeout = 0;
+                if (_.has(option, 'requester.timeout') && _.isNumber(option.requester.timeout) && option.requester.timeout >= 0) {
+                  _timeout = option.requester.timeout;
+                }
+
+                // script_mode
+                let _script_mode = 'none';
+
+                if (_.has(definition, 'request.request.body.mode')) {
+                  _script_mode = definition.request.request.body.mode;
+                }
+
+                // script_header
+                const _script_headers = [];
+                _.forEach(_requestPara.header, (item) => {
+                  _script_headers.push(item);
+                });
+                const _script_request_headers = request.formatRequestHeaders(_script_headers, _script_mode);
+                const _script_header_map = {
+                  urlencoded: 'application/x-www-form-urlencoded',
+                  none: '',
+                  'form-data': 'multipart/form-data',
+                };
+
+                // script_query
+                const _script_querys = {};
+                if (_.has(_requestPara, 'query')) {
+                  _.forEach(request.formatQueries(_requestPara.query), (value, key) => {
+                    _script_querys[key] = value;
+                  });
+                }
+
+                // script_body
+                let _script_bodys = {};
+                switch (_script_mode) {
+                  case 'none':
+                    _script_bodys = '';
+                    break;
+                  case 'form-data':
+                  case 'urlencoded':
+                    if (_.has(_requestPara, 'body') && _.isArray(_requestPara.body)) {
+                      _requestPara.body.forEach((item) => {
+                        if (parseInt(item.is_checked) > 0) {
+                          _script_bodys[item.key] = item.value;
+                        }
+                      });
+                    }
+                    break;
+                  default:
+                    if (_.has(definition, 'request.request.body.raw')) {
+                      _script_bodys = definition.request.request.body.raw;
+                    } else {
+                      _script_bodys = '';
+                    }
+                    break;
+                }
+
+                // script_request_para
+                const _request_para = {
+                  url: definition.request.url,
+                  method: definition.request.method,
+                  timeout: _timeout,
+                  contentType: _script_request_headers['content-type'] ? _script_request_headers['content-type'] : (_script_header_map[_script_mode] ? _script_header_map[_script_mode] : ''),
+                  request_headers: _script_request_headers,
+                  request_querys: _script_querys,
+                  request_bodys: _script_bodys,
+                };
+
                 RUNNER_RESULT_LOG[definition.iteration_id] = {
                   test_id: definition.test_id,
                   report_id: RUNNER_REPORT_ID,
@@ -1458,7 +1530,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   iteration_id: definition.iteration_id,
                   type: definition.type,
                   target_id: definition.target_id,
-                  request: {},
+                  request: _request_para,
                   response: {},
                   http_error: -1,
                   assert: [],
@@ -1466,8 +1538,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 };
 
                 // 执行预执行脚本
+                _.set(definition, 'script_request', _request_para); // fix bug
+
                 if (_.has(_requestPara, 'pre_script') && _.isString(_requestPara.pre_script)) {
-                  mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', (err, res) => {
+                  await mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', (err, res) => {
                     if (err && ignoreError < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
                     }
@@ -1755,7 +1829,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     _requestPara.test = `${_requestPara.test}\r\n${_global_asserts_script}`;
                   }
 
-                  mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', (err, exec_res) => {
+                  await mySandbox.execute(_requestPara.test, _.assign(definition, { response: res }), 'test', (err, exec_res) => {
                     if (err && ignoreError < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
                     } else if (_.has(exec_res, 'raw.responseText') && _.has(res, 'data.response.raw.responseText') && exec_res.raw.responseText != res.data.response.raw.responseText) {
