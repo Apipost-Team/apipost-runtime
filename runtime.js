@@ -762,6 +762,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             // ...{ JSEncrypt?JSEncrypt:{} },
             ...{ moment },
             ...{ dayjs },
+            JSON: JSON5, // 增加 JSON 方法
             console: consoleFn,
             print: consoleFn.log,
             xml2json(xml) {
