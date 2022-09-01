@@ -788,6 +788,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             uuidv4() {
               return uuid.v4();
             },
+            ...{ uuid },
+            ...{ aTools },
+            ...{ validCookie },
+            ...{ urlJoin },
             $,
             apt: pm,
             request: pm.request ? _.cloneDeep(pm.request) : {},
