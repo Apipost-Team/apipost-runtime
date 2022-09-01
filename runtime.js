@@ -123,6 +123,23 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       insideVariablesScope.list[`$${func}`] = ['131', '132', '137', '188'][_.random(0, 3)] + Mock.mock(/\d{8}/);
     });
 
+    // 兼容 v3
+    insideVariablesScope.list.$timestamp = (function () {
+      return Date.parse(new Date()) / 1000;
+    }());
+
+    insideVariablesScope.list.$microTimestamp = (function () {
+      return (new Date()).getTime();
+    }());
+
+    insideVariablesScope.list.$randomInt = (function () {
+      return Math.floor(Math.random() * 1000);
+    }());
+
+    insideVariablesScope.list.$randomFloat = (function () {
+      return Math.random() * 1000;
+    }());
+
     // 动态变量
     const variablesScope = {
       globals: {}, // 公共变量
@@ -265,8 +282,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         return variablesStr;
       }
 
-      // let allVariables = getAllInsideVariables();
-      let allVariables = {};
+      let allVariables = getAllInsideVariables(); // fix bug
+      // let allVariables = {};
       _.assign(allVariables, getAllDynamicVariables(type));
 
       if (withMock) {
@@ -278,12 +295,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         if (_.startsWith(item, '$')) {
           item = `\\${item}`;
         }
-        return `{{${item}}}`;
+        return `\\{\\{${item}\\}\\}`; // fix bug
       }).join('|'), 'gi');
 
       variablesStr = _.replace(variablesStr, _regExp, (key) => {
-        const reStr = allVariables[_.replace(key, /[{}]/gi, '')];
-
+        const reStr = allVariables[String(_.replace(key, /[{}]/gi, ''))];
+        // console.log(String(_.replace(key, /[{}]/gi, '')), reStr, _regExp);
         if (typeof reStr !== 'undefined') {
           return reStr;
         }
@@ -762,6 +779,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             // ...{ JSEncrypt?JSEncrypt:{} },
             ...{ moment },
             ...{ dayjs },
+            JSON: JSON5, // 增加 JSON 方法
             console: consoleFn,
             print: consoleFn.log,
             xml2json(xml) {
@@ -770,6 +788,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             uuidv4() {
               return uuid.v4();
             },
+            ...{ uuid },
+            ...{ aTools },
+            ...{ validCookie },
+            ...{ urlJoin },
             $,
             apt: pm,
             request: pm.request ? _.cloneDeep(pm.request) : {},
@@ -1179,7 +1201,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       ignoreError = !!ignoreError;
     }
     ignore_error = ignoreError ? 1 : 0;
-    enable_sandbox = typeof enable_sandbox === 'undefined' ? 0 : 1;
+    enable_sandbox = typeof enable_sandbox === 'undefined' ? -1 : enable_sandbox; // fix bug
 
     if (typeof env === 'undefined') {
       env = {
@@ -1241,12 +1263,16 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     if (!_.isArray(iterationData)) {  // fixed iterationData 兼容
       if (_.isObject(iterationData)) {
         const _interData = _.values(iterationData);
-        iterationData = _.isArray(_interData) && _.isArray(_interData[0]) ? _interData[0] : []; // fix bug
+        if (_.isArray(_interData) && _.isArray(_interData[0])) {
+          iterationData = _interData[0];
+        } else {
+          iterationData = [];
+        }
       } else {
         iterationData = [];
       }
     }
-
+    // console.log(iterationData);
     if (typeof iterationCount === 'undefined') {
       iterationCount = 1;
     }
@@ -1282,10 +1308,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     if (_.isArray(definitions) && definitions.length > 0) {
       for (let i = 0; i < definitions.length; i++) {
         const definition = definitions[i];
+        // RUNNER_RUNTIME_POINTER
+        // console.log('i', i, RUNNER_RUNTIME_POINTER);
         _.assign(definition, {
           iteration_id: uuid.v4(),  // 每次执行单任务的ID
           iteration: i,
-          iterationData: iterationData[i] ? iterationData[i] : iterationData[0],
+          iterationData: iterationData[RUNNER_RUNTIME_POINTER] ? iterationData[RUNNER_RUNTIME_POINTER] : iterationData[0],
           ...{ iterationCount },
           ...{ env_name },
           ...{ env_pre_url },
@@ -1408,8 +1436,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     if (_.isArray(_parent_ids) && _parent_ids.length > 0) {
                       _parent_ids.forEach((parent_id) => {
                         const _folder = getItemFromCollection(collection, parent_id);
-
+                        // console.log(_folder);
                         if (_.has(_folder, `request.['${_type}']`) && _.isObject(_folder.request[_type]) && _folder.request[_type].type != 'noauth') {
+                          // console.log(_folder.request[_type]);
                           _.assign(_requestPara[_type], _folder.request[_type]);
                         }
                       });
@@ -1497,20 +1526,20 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     if (_.has(_requestPara, 'body') && _.isArray(_requestPara.body)) {
                       _requestPara.body.forEach((item) => {
                         if (parseInt(item.is_checked) > 0) {
-                          _script_bodys[item.key] = item.value;
+                          _script_bodys[mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK)] = mySandbox.replaceIn(item.value, null, AUTO_CONVERT_FIELD_2_MOCK);  // fix bug
                         }
                       });
                     }
                     break;
                   default:
                     if (_.has(definition, 'request.request.body.raw')) {
-                      _script_bodys = definition.request.request.body.raw;
+                      _script_bodys = mySandbox.replaceIn(definition.request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK); // fix bug
                     } else {
                       _script_bodys = '';
                     }
                     break;
                 }
-
+                // console.log(_requestPara);
                 // script_request_para
                 const _request_para = {
                   url: definition.request.url,
@@ -1581,7 +1610,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   });
                 }
 
-                // 重新渲染请求参数_request.request.body.raw = mySandbox.replaceIn(_request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK);
+                // 重新渲染请求参数
                 let _target = RUNNER_RESULT_LOG[definition.iteration_id];
 
                 if (typeof _target === 'object' && _.isObject(_target.beforeRequest)) {
@@ -1636,7 +1665,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 if (_.isObject(_requestPara.auth[_requestPara.auth.type])) {
                   _requestPara.auth[_requestPara.auth.type] = _.mapValues(_requestPara.auth[_requestPara.auth.type], val => mySandbox.replaceIn(val, null, AUTO_CONVERT_FIELD_2_MOCK));
-
+                  // console.log(_request, _requestPara);
+                  _.set(_request, 'request.auth.type', _requestPara.auth.type); // fix bug
                   _.set(_request, `request.auth.${_requestPara.auth.type}`, _requestPara.auth[_requestPara.auth.type]);
                 }
 
@@ -1684,6 +1714,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         _cookie.name = _cookie.key;
                       }
                       const cookieStr = validCookie.isvalid(_url, _cookie);
+                      // console.log(_url, _cookie, cookieStr);
                       if (cookieStr) {
                         _cookieArr.push(cookieStr.cookie);
                       }
