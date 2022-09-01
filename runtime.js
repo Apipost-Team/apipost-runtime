@@ -1053,6 +1053,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             test_id: item.test_id,
             type: item.type,
             report_id,
+            runtime: item.runtime,
             runtime_status: eventResultStatus[item.event_id],
           });
         }
@@ -1148,7 +1149,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         test_events: _.filter(definitionList, o => o.test_id == _test_id),
       });
     }
-
+    // console.log(report);
     log = null;
     return report;
   }
@@ -1347,6 +1348,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               break;
             case 'if':
               if (returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value))) {
+                _.set(definition, 'runtime.condition', `${mySandbox.replaceIn(definition.condition.var)} ${definition.condition.compare} ${mySandbox.replaceIn(definition.condition.value)}`);
                 await run(definition.children, option, initFlag + 1);
               }
               break;
@@ -1900,6 +1902,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             case 'while':
               if (_.isArray(definition.children) && definition.children.length > 0) {
                 const end = Date.now() + parseInt(definition.condition.timeout);
+                _.set(definition, 'runtime.condition', `${mySandbox.replaceIn(definition.condition.var)} ${definition.condition.compare} ${mySandbox.replaceIn(definition.condition.value)}`);
                 while ((returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value)))) {
                   if (Date.now() > end) {
                     break;
