@@ -794,6 +794,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             ...{ urlJoin },
             $,
             apt: pm,
+            // Promise,
             request: pm.request ? _.cloneDeep(pm.request) : {},
             response: pm.response ? _.assign(pm.response, { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
             expect: chai.expect,
@@ -809,6 +810,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         })).run(new vm2.VMScript(code));
         typeof callback === 'function' && callback(null, pm.response);
       } catch (err) {
+        // console.log('eeeee', err);
         emitTargetPara({
           action: 'SCRIPT_ERROR',
           eventName,
