@@ -1349,8 +1349,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               }
               break;
             case 'if':
+              _.set(definition, 'runtime.condition', `${mySandbox.replaceIn(definition.condition.var)} ${definition.condition.compare} ${mySandbox.replaceIn(definition.condition.value)}`);
+
               if (returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value))) {
-                _.set(definition, 'runtime.condition', `${mySandbox.replaceIn(definition.condition.var)} ${definition.condition.compare} ${mySandbox.replaceIn(definition.condition.value)}`);
                 await run(definition.children, option, initFlag + 1);
               }
               break;
@@ -1905,6 +1906,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               if (_.isArray(definition.children) && definition.children.length > 0) {
                 const end = Date.now() + parseInt(definition.condition.timeout);
                 _.set(definition, 'runtime.condition', `${mySandbox.replaceIn(definition.condition.var)} ${definition.condition.compare} ${mySandbox.replaceIn(definition.condition.value)}`);
+
                 while ((returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value)))) {
                   if (Date.now() > end) {
                     break;
