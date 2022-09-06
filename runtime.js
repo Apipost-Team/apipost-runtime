@@ -180,6 +180,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       configurable: true,
       value: {
         set(key, value) {
+          if (_.isObject(value)) {
+            try {
+              value = JSON.stringify(value);
+            } catch (e) {
+              value = String(value);
+            }
+          }
           variablesScope.variables[key] = value;
         },
         get(key) {
@@ -236,6 +243,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           configurable: true,
           value: {
             set(key, value, emitdb = true) {
+              if (_.isObject(value)) {
+                try {
+                  value = JSON.stringify(value);
+                } catch (e) {
+                  value = String(value);
+                }
+              }
+
               variablesScope[type][key] = value;
 
               if (emitdb) {
@@ -779,7 +794,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             // ...{ JSEncrypt?JSEncrypt:{} },
             ...{ moment },
             ...{ dayjs },
-            JSON: JSON5, // 增加 JSON 方法
+            JSON, // 增加 JSON 方法 // fixed JSON5 bug
             console: consoleFn,
             print: consoleFn.log,
             xml2json(xml) {
@@ -1546,8 +1561,22 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
                 // console.log(_requestPara);
                 // script_request_para
+                // 环境前缀 fix bug
+                let _script_pre_url = mySandbox.replaceIn(env_pre_url, null, AUTO_CONVERT_FIELD_2_MOCK);
+                let _script_url = mySandbox.replaceIn(definition.request.url, null, AUTO_CONVERT_FIELD_2_MOCK);
+
+                // 拼接环境前置URl
+                if (_.isString(_script_pre_url) && _script_pre_url.length > 0) {
+                  if (!_.startsWith(_.toLower(_script_pre_url), 'https://') && !_.startsWith(_.toLower(_script_pre_url), 'http://')) {
+                    _script_pre_url = `http://${_script_pre_url}`;
+                  }
+                  _script_url = urlJoin(_script_pre_url, _script_url);
+                } else if (!_.startsWith(_.toLower(_script_url), 'https://') && !_.startsWith(_.toLower(_script_url), 'http://')) {
+                  _script_url = `http://${_script_url}`;
+                }
+
                 const _request_para = {
-                  url: definition.request.url,
+                  url: _script_url,
                   method: definition.request.method,
                   timeout: _timeout,
                   contentType: _script_request_headers['content-type'] ? _script_request_headers['content-type'] : (_script_header_map[_script_mode] ? _script_header_map[_script_mode] : ''),
