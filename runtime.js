@@ -707,8 +707,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             }
             chai.assert.isTrue(new Function('response', 'request', `return ${String(assert)}`)(_response, _.cloneDeep(pm.request)));
             emitAssertResult('success', String(assert), '成功', scope);
+            return true; // fixed bug
           } catch (e) {
             emitAssertResult('error', String(assert), e.toString().replace('AssertionError', '断言校验失败').replace('expected false to be true', '表达式不成立'), scope);
+            return false; // fixed bug
           }
         },
       });
