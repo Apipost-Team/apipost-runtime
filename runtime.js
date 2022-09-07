@@ -2119,6 +2119,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   environment: _.assign(mySandbox.variablesScope.environment, mySandbox.variablesScope.variables), // fix variables bug
                 },
                 data: {
+                  script_error: _http.script_error, // fixed script error bug
                   visualizer_html: _http.visualizer_html, // fixed 可视化 bug
                   assert: _http.assert,
                   target_id: _http.target_id,
