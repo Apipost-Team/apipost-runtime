@@ -15,11 +15,10 @@ const apipostRequest = require('apipost-send'),
   // { window } = new JSDOM(''),
   $ = require('jquery'),
   nodeAjax = require('ajax-for-node'), // new module on 0829
-  // JSEncrypt = require("jsencrypt"),
+  JSEncryptNode = require('jsencrypt-node'), // fix bug
   moment = require('moment'),
   dayjs = require('dayjs'),
   vm2 = require('vm2'),
-  // ajax = require('@fdaciuk/ajax'),
   colors = require('colors'),
   ASideTools = require('apipost-inside-tools'),
   stripJsonComments = require('strip-json-comments'),
@@ -705,10 +704,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             if (_.isFunction(_response.json)) {
               _response.json = _response.json();
             }
-            chai.assert.isTrue(new Function('response', 'request', `return ${String(assert)}`)(_response, _.cloneDeep(pm.request)));
+
+            chai.assert.isTrue(new Function('response', 'request', 'window', `return ${String(assert)}`)(_response, _.cloneDeep(pm.request)));
             emitAssertResult('success', String(assert), '成功', scope);
+            return true; // fixed bug
           } catch (e) {
             emitAssertResult('error', String(assert), e.toString().replace('AssertionError', '断言校验失败').replace('expected false to be true', '表达式不成立'), scope);
+            return false; // fixed bug
           }
         },
       });
@@ -791,7 +793,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             // ...{ navigator?navigator:{} },
             // ...{ $ },
             ...{ x2js },
-            // ...{ JSEncrypt?JSEncrypt:{} },
+            JSEncrypt: JSEncryptNode,
             ...{ moment },
             ...{ dayjs },
             JSON, // 增加 JSON 方法 // fixed JSON5 bug
@@ -1576,6 +1578,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
 
                 const _request_para = {
+                  id: (_.has(definition, 'request.target_id') ? definition.request.target_id : ''),
+                  name: (_.has(definition, 'request.name') ? definition.request.name : undefined),
+                  description: (_.has(definition, 'request.request.description') ? definition.request.request.description : undefined),
                   url: _script_url,
                   method: definition.request.method,
                   timeout: _timeout,
@@ -1583,6 +1588,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   request_headers: _script_request_headers,
                   request_querys: _script_querys,
                   request_bodys: _script_bodys,
+                  data: _script_bodys,
+                  headers: _script_request_headers,
                 };
 
                 RUNNER_RESULT_LOG[definition.iteration_id] = {
@@ -1861,10 +1868,18 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       message: {
                         data: {
                           request: {
+                            id: (_.has(definition, 'request.target_id') ? definition.request.target_id : ''),
+                            name: (_.has(definition, 'request.name') ? definition.request.name : undefined),
+                            description: (_.has(definition, 'request.request.description') ? definition.request.request.description : undefined),
                             method: _request.method,
                             url: request.setQueryString(_request.request.url, request.formatQueries(_request.request.query.parameter)).uri,
                             request_bodys: _.indexOf(['form-data', 'urlencoded'], _request.request.body.mode) ? _.mapValues(_formPara, o => _.size(o) > 1 ? o : o[0]) : _formPara,
                             request_headers: {
+                              ...request.formatRequestHeaders(_request.request.header.parameter),
+                              ...request.createAuthHeaders(_request),
+                            },
+                            data: _.indexOf(['form-data', 'urlencoded'], _request.request.body.mode) ? _.mapValues(_formPara, o => _.size(o) > 1 ? o : o[0]) : _formPara,
+                            headers: {
                               ...request.formatRequestHeaders(_request.request.header.parameter),
                               ...request.createAuthHeaders(_request),
                             },
@@ -2104,6 +2119,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   environment: _.assign(mySandbox.variablesScope.environment, mySandbox.variablesScope.variables), // fix variables bug
                 },
                 data: {
+                  script_error: _http.script_error, // fixed script error bug
                   visualizer_html: _http.visualizer_html, // fixed 可视化 bug
                   assert: _http.assert,
                   target_id: _http.target_id,
