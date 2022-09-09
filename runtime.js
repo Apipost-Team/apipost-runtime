@@ -887,10 +887,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         bool = _.lte(Number(exp), Number(value));
         break;
       case 'includes':
-        bool = _.includes(exp, value);
+        bool = _.includes(exp, value) || _.includes(exp, String(value)); // fix bug
         break;
       case 'unincludes':
-        bool = !_.includes(exp, value);
+        bool = !_.includes(exp, value) && !_.includes(exp, String(value)); // fix bug
         break;
       case 'null':
         bool = _.isNull(exp, value);
