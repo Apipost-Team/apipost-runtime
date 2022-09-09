@@ -297,6 +297,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       }
 
       let allVariables = getAllInsideVariables(); // fix bug
+      // console.log(getAllDynamicVariables(type));
       // let allVariables = {};
       _.assign(allVariables, getAllDynamicVariables(type));
 
@@ -887,10 +888,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         bool = _.lte(Number(exp), Number(value));
         break;
       case 'includes':
-        bool = _.includes(exp, value) || _.includes(exp, String(value)); // fix bug
+        bool = _.includes(exp, value) || _.includes(exp, Number(value)); // fix bug
         break;
       case 'unincludes':
-        bool = !_.includes(exp, value) && !_.includes(exp, String(value)); // fix bug
+        bool = !_.includes(exp, value) && !_.includes(exp, Number(value)); // fix bug
         break;
       case 'null':
         bool = _.isNull(exp, value);
@@ -1343,6 +1344,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         if (_.isObject(definition.iterationData)) {
           for (const [key, value] of Object.entries(definition.iterationData)) {
+            // console.log(key, value);
             mySandbox.dynamicVariables.iterationData.set(key, value, false);
           }
         }
@@ -1384,7 +1386,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 if (_requestBody && _.isObject(_requestBody)) {
                   _.assign(definition.request, {
                     url: definition.request.url ? definition.request.url : _requestBody.request.url,
-                    request: _requestBody.request,
+                    request: _.cloneDeep(_requestBody.request), // fix bug
                   });
 
                   _requestBody = null;
@@ -1619,6 +1621,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
 
                 let _request = _.cloneDeep(definition.request);
+                console.log(mySandbox.variablesScope.iterationData, _.cloneDeep(_request.request.body.parameter));// 888
 
                 // 替换 _requestPara 的参数变量
                 new Array('header', 'query', 'body', 'resful').forEach((type) => {
