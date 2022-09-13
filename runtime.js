@@ -1574,7 +1574,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   if (!_.startsWith(_.toLower(_script_pre_url), 'https://') && !_.startsWith(_.toLower(_script_pre_url), 'http://')) {
                     _script_pre_url = `http://${_script_pre_url}`;
                   }
+
                   _script_url = urlJoin(_script_pre_url, _script_url);
+
+                  if (_.endsWith(_script_pre_url, '/')) { // fix bug
+                    _script_url = _.replace(_script_url, `${_script_pre_url}:`, `${_script_pre_url.substr(0, _script_pre_url.length - 1)}:`);
+                  } else {
+                    _script_url = _.replace(_script_url, `${_script_pre_url}/:`, `${_script_pre_url}:`);
+                  }
                 } else if (!_.startsWith(_.toLower(_script_url), 'https://') && !_.startsWith(_.toLower(_script_url), 'http://')) {
                   _script_url = `http://${_script_url}`;
                 }
@@ -1739,6 +1746,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   }
 
                   _url = urlJoin(_pre_url, _url);
+
+                  if (_.endsWith(_pre_url, '/')) { // fix bug
+                    _url = _.replace(_url, `${_pre_url}:`, `${_pre_url.substr(0, _pre_url.length - 1)}:`);
+                  } else {
+                    _url = _.replace(_url, `${_pre_url}/:`, `${_pre_url}:`);
+                  }
                 } else if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
                   _url = `http://${_url}`;
                 }
