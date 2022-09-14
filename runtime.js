@@ -203,6 +203,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           delete variablesScope.variables[key];
         },
         clear() {
+          if (_.isObject(variablesScope.variables)) {
+            _.forEach(variablesScope.variables, (value, key) => {
+              delete variablesScope.variables[key];
+            });
+          }
           variablesScope.variables = {};
         },
         replaceIn(variablesStr) {
@@ -272,6 +277,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].delete) && aptScripts[type].delete(key);
             },
             clear() {
+              if (_.isObject(variablesScope[type])) { // fix bug
+                _.forEach(variablesScope[type], (value, key) => {
+                  delete variablesScope[type][key];
+                });
+              }
               variablesScope[type] = {};
               typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].clear) && aptScripts[type].clear();
             },
@@ -779,7 +789,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         await (new vm2.VM({
           timeout: 5000,
-          sandbox: {
+          sandbox: _.assign({
             ...{ nodeAjax },
             ...{ pm },
             ...{ chai },
@@ -826,7 +836,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
               }
             },
-          },
+          }, variablesScope),
         })).run(new vm2.VMScript(code));
         typeof callback === 'function' && callback(null, pm.response);
       } catch (err) {
