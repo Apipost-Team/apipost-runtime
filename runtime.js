@@ -1,4 +1,5 @@
 const apipostRequest = require('apipost-send'),
+  FormData = require('form-data'), // add module 0914
   Table = require('cli-table3'),
   Cookie = require('cookie'),
   zlib = require('zlib'),
@@ -800,6 +801,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             JSON, // 增加 JSON 方法 // fixed JSON5 bug
             console: consoleFn,
             print: consoleFn.log,
+            FormData,
             xml2json(xml) {
               return (new x2js()).xml2js(xml);
             },
