@@ -1569,13 +1569,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     break;
                   default:
                     if (_.has(definition, 'request.request.body.raw')) {
-                      _script_bodys = mySandbox.replaceIn(definition.request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK); // fix bug
+                      _script_bodys = mySandbox.replaceIn(request.formatRawJsonBodys(definition.request.request.body.raw), null, AUTO_CONVERT_FIELD_2_MOCK);
+                      // _script_bodys = mySandbox.replaceIn(definition.request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK); // fix bug
                     } else {
                       _script_bodys = '';
                     }
                     break;
                 }
-                // console.log(_requestPara);
+
                 // script_request_para
                 // 环境前缀 fix bug
                 let _script_pre_url = mySandbox.replaceIn(env_pre_url, null, AUTO_CONVERT_FIELD_2_MOCK);
@@ -1640,7 +1641,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
 
                 let _request = _.cloneDeep(definition.request);
-                console.log(mySandbox.variablesScope.iterationData, _.cloneDeep(_request.request.body.parameter));// 888
 
                 // 替换 _requestPara 的参数变量
                 new Array('header', 'query', 'body', 'resful').forEach((type) => {
@@ -1681,20 +1681,40 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     if (_.has(_request, `request.${type}.parameter`) && _.isArray(_target.beforeRequest[type])) {
                       _target.beforeRequest[type].forEach((_item) => {
                         if (_item.action == 'set') {
-                          const _itemPara = _.find(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK)));
+                          if (_.isObject(_item.key)) { // 允许直接修改请求体 new features
+                            if (_.isArray(_request.request[type].parameter)) {
+                              _request.request[type].parameter = [];
+                              _.forEach(_item.key, (_set_value, _set_key) => {
+                                _set_key = _.trim(_set_key);
+                                if (_set_key != '') {
+                                  _request.request[type].parameter.push({
+                                    description: '',
+                                    field_type: 'Text',
+                                    is_checked: '1',
+                                    key: mySandbox.replaceIn(_set_key, null, AUTO_CONVERT_FIELD_2_MOCK),
+                                    not_null: '1',
+                                    type: 'Text',
+                                    value: mySandbox.replaceIn(_set_value, null, AUTO_CONVERT_FIELD_2_MOCK),
+                                  });
+                                }
+                              });
+                            }
+                          } else if (_.isString(_item.key)) {
+                            const _itemPara = _.find(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK)));
 
-                          if (_itemPara) {
-                            _itemPara.value = mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK);
-                          } else {
-                            _request.request[type].parameter.push({
-                              description: '',
-                              field_type: 'Text',
-                              is_checked: '1',
-                              key: mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
-                              not_null: '1',
-                              type: 'Text',
-                              value: mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK),
-                            });
+                            if (_itemPara) {
+                              _itemPara.value = mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK);
+                            } else {
+                              _request.request[type].parameter.push({
+                                description: '',
+                                field_type: 'Text',
+                                is_checked: '1',
+                                key: mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK),
+                                not_null: '1',
+                                type: 'Text',
+                                value: mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK),
+                              });
+                            }
                           }
                         } else if (_item.action == 'remove') {
                           _.remove(_request.request[type].parameter, _.matchesProperty('key', mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK)));
@@ -1714,7 +1734,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       if (_rawParse) {
                         _target.beforeRequest[type].forEach((_item) => {
                           if (_item.action == 'set') {
-                            _.set(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK), mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK));
+                            if (_.isObject(_item.key)) { // 允许直接修改请求体 new features
+                              _request.request.body.raw = _rawParse = JSONbig.parse(mySandbox.replaceIn(JSONbig.stringify(_item.key), null, AUTO_CONVERT_FIELD_2_MOCK));
+                            } else if (_.isString(_item.key)) {
+                              _.set(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK), mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK));
+                            }
                           } else if (_item.action == 'remove') {
                             _.unset(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK));
                           }
