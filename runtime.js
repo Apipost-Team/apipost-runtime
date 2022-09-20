@@ -1,4 +1,5 @@
 const apipostRequest = require('apipost-send'),
+  asyncModule = require('async'), // add module 0920
   FormData = require('form-data'), // add module 0914
   Table = require('cli-table3'),
   Cookie = require('cookie'),
@@ -785,7 +786,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           return CryptoJS.MD5(str).toString();
         };
 
-        $.ajax = nodeAjax; // fix bug
+        $.ajax = await nodeAjax;
+
+        // fix bug
+        code = `(async function () {
+          ${code}
+        })()`;
 
         await (new vm2.VM({
           timeout: 5000,
@@ -811,6 +817,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             JSON, // 增加 JSON 方法 // fixed JSON5 bug
             console: consoleFn,
             print: consoleFn.log,
+            async: asyncModule,
             FormData,
             xml2json(xml) {
               return (new x2js()).xml2js(xml);
@@ -822,8 +829,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             ...{ aTools },
             ...{ validCookie },
             ...{ urlJoin },
-            $,
             apt: pm,
+            $,
             // Promise,
             request: pm.request ? _.cloneDeep(pm.request) : {},
             response: pm.response ? _.assign(pm.response, { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
@@ -840,7 +847,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         })).run(new vm2.VMScript(code));
         typeof callback === 'function' && callback(null, pm.response);
       } catch (err) {
-        // console.log('eeeee', err);
+        console.log('eeeee', err);
         emitTargetPara({
           action: 'SCRIPT_ERROR',
           eventName,
@@ -1213,14 +1220,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     RUNNER_RUNTIME_POINTER = 0;
 
   // start run
-  async function run(definitions, option = {}, initFlag = 0) {
+  async function run(definitions, option = {}, initFlag = 0, loopCount = 0) {
     option = _.assign({
       project: {},
       collection: [], // 当前项目的所有接口列表
       environment: {}, // 当前环境变量
       globals: {}, // 当前公共变量
       iterationData: [], // 当前迭代的excel导入数据
-      iterationCount: 1, // 当前迭代次数
+      iterationCount: loopCount || 1, // 当前迭代次数
       ignoreError: 1, // 遇到错误忽略
       sleep: 0, // 每个任务的间隔时间
       requester: {}, // 发送模块的 options
@@ -1307,7 +1314,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     }
     // console.log(iterationData);
     if (typeof iterationCount === 'undefined') {
-      iterationCount = 1;
+      iterationCount = loopCount || 1;
     }
 
     // 自动替换 Mock
@@ -1342,11 +1349,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       for (let i = 0; i < definitions.length; i++) {
         const definition = definitions[i];
         // RUNNER_RUNTIME_POINTER
-        // console.log('i', i, RUNNER_RUNTIME_POINTER);
+
         _.assign(definition, {
           iteration_id: uuid.v4(),  // 每次执行单任务的ID
           iteration: i,
-          iterationData: iterationData[RUNNER_RUNTIME_POINTER] ? iterationData[RUNNER_RUNTIME_POINTER] : iterationData[0],
+          iterationData: iterationData[loopCount] ? iterationData[loopCount] : iterationData[0],
           ...{ iterationCount },
           ...{ env_name },
           ...{ env_pre_url },
@@ -1634,6 +1641,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 if (_.has(_requestPara, 'pre_script') && _.isString(_requestPara.pre_script)) {
                   await mySandbox.execute(_requestPara.pre_script, definition, 'pre_script', (err, res) => {
+                    // console.log('pre_script', err, res);
                     if (err && ignoreError < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
                     }
@@ -1817,7 +1825,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         _cookie.name = _cookie.key;
                       }
                       const cookieStr = validCookie.isvalid(_url, _cookie);
-                      // console.log(_url, _cookie, cookieStr);
+
                       if (cookieStr) {
                         _cookieArr.push(cookieStr.cookie);
                       }
@@ -2004,7 +2012,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               // console.log('for', definition);
               if (_.isArray(definition.children) && definition.children.length > 0) {
                 for (let i = 0; i < mySandbox.replaceIn(definition.condition.limit); i++) {
-                  await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1);
+                  await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1, i);
                 }
               }
               break;
@@ -2017,8 +2025,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   if (Date.now() > end) {
                     break;
                   }
-
-                  await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1);
+                  let _i = 0;
+                  await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1, _i);
+                  _i++;
                 }
               }
               break;
