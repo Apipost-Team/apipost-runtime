@@ -1747,8 +1747,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                             if (_.isObject(_item.key) || _.isUndefined(_item.value)) { // 允许直接修改请求体 new features
                               if (_.isObject(_item.key)) {
                                 _request.request.body.raw = _rawParse = JSONbig.parse(mySandbox.replaceIn(JSONbig.stringify(_item.key), null, AUTO_CONVERT_FIELD_2_MOCK));
-                              } else {
-                                _request.request.body.raw = _rawParse = mySandbox.replaceIn(JSONbig.stringify(_item.key), null, AUTO_CONVERT_FIELD_2_MOCK);
+                              } else if (_.isString(_item.key) || _.isNumber(_item.key)) {
+                                _request.request.body.raw = _rawParse = mySandbox.replaceIn(String(_item.key), null, AUTO_CONVERT_FIELD_2_MOCK); // fix bug
                               }
                             } else if (_.isString(_item.key)) {
                               _.set(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK), mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK));
