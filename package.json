@@ -24,7 +24,7 @@
     "url": "https://github.com/Apipost-Team/apipost-runtime/issues"
   },
   "homepage": "https://github.com/Apipost-Team/apipost-runtime#readme",
-  "dependencies": {
+  "peerDependencies": {
     "ajax-for-node": "^1.0.9",
     "apipost-inside-tools": "^0.1.10",
     "apipost-send": "^0.0.33",
