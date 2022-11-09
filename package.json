@@ -53,13 +53,14 @@
     "mockjs": "^1.1.0",
     "moment": "^2.29.4",
     "navigator": "^1.0.1",
-    "rollup-plugin-commonjs": "^10.1.0",
-    "rollup-plugin-terser": "^7.0.2",
     "strip-json-comments": "3.1.1",
     "url-join": "4.0.1",
     "uuid": "^8.3.2",
     "vm2": "^3.9.10",
     "x2js": "^3.4.3",
     "zlib": "^1.0.5"
+  },
+  "dependencies": {
+    "rollup-plugin-commonjs": "^10.1.0"
   }
 }
