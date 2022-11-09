@@ -24,16 +24,14 @@
     "url": "https://github.com/Apipost-Team/apipost-runtime/issues"
   },
   "homepage": "https://github.com/Apipost-Team/apipost-runtime#readme",
-  "peerDependencies": {
+  "dependencies": {
     "apipost-inside-tools": "^0.1.10",
     "apipost-send": "^0.0.33",
     "apipost-tools": "^0.0.20",
     "art-template": "^4.13.2",
     "async": "^3.2.4",
     "buffer": "^6.0.3",
-    "chai-apipost": "^0.0.3"
-  },
-  "dependencies": {
+    "chai-apipost": "^0.0.3",
     "ajax-for-node": "^1.0.9",
     "chai": "^4.3.6",
     "rollup-plugin-commonjs": "^10.1.0",
@@ -57,5 +55,17 @@
     "vm2": "^3.9.10",
     "x2js": "^3.4.3",
     "zlib": "^1.0.5"
+  },
+  "peerDependencies": {
+    "apipost-inside-tools": ">=0.1.10",
+    "apipost-send": ">=0.0.33",
+    "apipost-tools": ">=0.0.20",
+    "art-template": ">=4.13.2",
+    "chai-apipost": ">=0.0.3",
+    "dayjs": ">=1.11.4",
+    "jquery": ">=3.6.0",
+    "lodash": ">=4.17.21",
+    "vm2": ">=3.9.10",
+    "uuid": ">=8.3.2"
   }
 }
