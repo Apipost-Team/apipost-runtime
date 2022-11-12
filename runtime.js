@@ -1803,7 +1803,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 } else if (!_.startsWith(_.toLower(_url), 'https://') && !_.startsWith(_.toLower(_url), 'http://')) {
                   _url = `http://${_url}`;
                 }
-                _url=encodeURI(_url);
+                // _url=encodeURI(_url);
                 _.set(_request, 'url', _url);
                 _.set(_request, 'request.url', _url);
 
