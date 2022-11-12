@@ -2121,8 +2121,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               reportTable.push(
                 [{ content: 'The result of API test'.bold.gray, colSpan: 4, hAlign: 'center' }],
                 ['', { content: 'passed', hAlign: 'center' }, { content: 'failed', hAlign: 'center' }, { content: 'ignore', hAlign: 'center' }],
-                [{ content: 'request', hAlign: 'left' }, { content: `${_runReport.http.passed}`.green, hAlign: 'center' }, { content: `${_runReport.http.failure}`.underline.red, hAlign: 'center' }, { content: `${_runReport.ignore_count}`, rowSpan: 2, hAlign: 'center', vAlign: 'center' }],
-                [{ content: 'assertion', hAlign: 'left' }, { content: `${_runReport.assert.passed}`.green, hAlign: 'center' }, { content: `${_runReport.assert.failure}`.underline.red, hAlign: 'center' }],
+                [{ content: 'request', hAlign: 'left' }, { content: `${_runReport.http.passed}`.green, hAlign: 'center' }, { content: `${_runReport.http.failure}`.underline?.red, hAlign: 'center' }, { content: `${_runReport.ignore_count}`, rowSpan: 2, hAlign: 'center', vAlign: 'center' }],
+                [{ content: 'assertion', hAlign: 'left' }, { content: `${_runReport.assert.passed}`.green, hAlign: 'center' }, { content: `${_runReport.assert.failure}`.underline?.red, hAlign: 'center' }],
                 [{ content: `total number of api: ${_runReport.total_count}, ignore: ${_runReport.ignore_count}`, colSpan: 4, hAlign: 'left' }],
                 [{ content: `total data received: ${_runReport.total_received_data} KB (approx)`, colSpan: 4, hAlign: 'left' }],
                 [{ content: `total response time: ${_runReport.total_response_time} 毫秒, average response time: ${_runReport.average_response_time} 毫秒`, colSpan: 4, hAlign: 'left' }],
