@@ -55,7 +55,9 @@
     "uuid": "^8.3.2",
     "vm2": "^3.9.10",
     "x2js": "^3.4.3",
-    "zlib": "^1.0.5"
+    "zlib": "^1.0.5",
+    "urljoins": "^0.0.3",
+    "sm-crypto": "^0.3.11"
   },
   "peerDependencies": {
     "apipost-inside-tools": ">=0.1.10",
