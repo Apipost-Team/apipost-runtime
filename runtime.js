@@ -1,4 +1,8 @@
 const apipostRequest = require('apipost-send'),
+  sm2 = require('sm-crypto').sm2, // add module for 7.0.8
+  sm3 = require('sm-crypto').sm3, // add module for 7.0.8
+  sm4 = require('sm-crypto').sm4, // add module for 7.0.8
+  urljoins = require("urljoins").urljoins,// add module for 7.0.8 https://www.npmjs.com/package/urljoins
   asyncModule = require('async'), // add module 0920
   FormData = require('form-data'), // add module 0914
   Table = require('cli-table3'),
@@ -113,7 +117,73 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       list: {}, // 常量
     };
 
-    new Array('natural', 'integer', 'float', 'character', 'range', 'date', 'time', 'datetime', 'now', 'guid', 'integeincrementr', 'url', 'protocol', 'domain', 'tld', 'email', 'ip', 'region', 'province', 'city', 'county', 'county', 'zip', 'first', 'last', 'name', 'cfirst', 'clast', 'cname', 'color', 'rgb', 'rgba', 'hsl', 'paragraph', 'cparagraph', 'sentence', 'csentence', 'word', 'cword', 'title', 'ctitle').forEach((func) => {
+    /**
+     *  拓展mockjs， 定义一些内置 mock
+     *  fix bug for 7.0.8
+     */
+    const _mockjsRandomExtend = {};
+
+    // 重写 string
+    _mockjsRandomExtend['string'] = function (pool, start, end) {
+      let charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+      if (typeof pool == 'string') {
+        charSet = Mock.mock(pool);
+      }
+
+      if (typeof pool == 'string') {
+        pool = Mock.mock(pool);
+
+        if (typeof start == 'number') {
+          if (typeof end == 'number') {
+            return _.sampleSize(pool, _.random(start, end)).join('');
+          }
+
+          return _.sampleSize(pool, start).join('');
+        }
+        return _.sample(pool);
+      }
+
+      if (typeof pool == 'number') {
+
+        if (typeof start == 'number') {
+          return _.sampleSize(charSet, _.random(pool, start)).join('');
+        }
+        return _.sampleSize(charSet, pool).join('')
+      }
+    }
+
+    new Array('telephone', 'phone', 'mobile').forEach(func => {
+      _mockjsRandomExtend[func] = function () {
+        return this.pick(['131', '132', '137', '188']) + Mock.mock(/\d{8}/)
+      };
+    })
+    new Array('username', 'user_name', 'nickname', 'nick_name').forEach(func => {
+      _mockjsRandomExtend[func] = function () {
+        return Mock.mock(`@cname`)
+      };
+    })
+    new Array('avatar', 'icon', 'img', 'photo', 'pic').forEach(func => {
+      _mockjsRandomExtend[func] = function () {
+        return Mock.mock(`@image('400x400')`)
+      };
+    })
+
+    new Array('description').forEach(func => {
+      _mockjsRandomExtend[func] = function () {
+        return Mock.mock(`@cparagraph`)
+      };
+    })
+
+    new Array('id', 'userid', 'user_id', 'articleid', 'article_id').forEach(func => {
+      _mockjsRandomExtend[func] = function () {
+        return Mock.mock(`@integer(100, 1000)`)
+      };
+    })
+
+    Mock.Random.extend(_mockjsRandomExtend);
+
+    new Array('natural', 'integer', 'float', 'character', 'range', 'date', 'time', 'datetime', 'now', 'guid', 'integeincrementr', 'url', 'protocol', 'domain', 'tld', 'email', 'ip', 'region', 'province', 'city', 'county', 'county', 'zip', 'first', 'last', 'name', 'cfirst', 'clast', 'cname', 'color', 'rgb', 'rgba', 'hsl', 'paragraph', 'cparagraph', 'sentence', 'csentence', 'word', 'cword', 'title', 'ctitle', 'username', 'user_name', 'nickname', 'nick_name', 'avatar', 'icon', 'img', 'photo', 'pic', 'description', 'id', 'userid', 'user_id', 'articleid', 'article_id').forEach((func) => {
       insideVariablesScope.list[`$${func}`] = Mock.mock(`@${func}`);
     });
 
@@ -311,7 +381,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       _.assign(allVariables, getAllDynamicVariables(type));
 
       if (withMock) {
-        variablesStr = Mock.mock(variablesStr);
+        try {
+          // console.log(variablesStr, typeof variablesStr, Mock.mock(`${variablesStr}`))
+          variablesStr = Mock.mock(variablesStr);
+        } catch (e) { console.log(e) }
       }
 
       // 替换自定义变量
@@ -625,10 +698,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   _.set(item, 'beforeRequest.header', []);
                 }
 
-                item.beforeRequest.header.push({
+                item.beforeRequest.header.push({ // fix bug for 7.0.8
                   action: 'set',
-                  key,
-                  value,
+                  key: String(key),
+                  value: String(value),
                 });
               }
             },
@@ -738,7 +811,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           set: (template, data) => {
             try {
               const html = artTemplate.render(template, data);
-              emitVisualizerHtml('success', html, scope);
+              emitVisualizerHtml('success', `<link rel="stylesheet" href="https://img.cdn.apipost.cn/docs/css7/content-v7.css?20220909" type="text/css" media="screen"> ${html}`, scope);
             } catch (e) {
               emitVisualizerHtml('error', e.toString(), scope);
             }
@@ -751,8 +824,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         value: (template, data) => {
           try {
             const html = artTemplate.render(template, data);
-            // console.log(html);
-            emitVisualizerHtml('success', html, scope);
+            // console.log(html, template);
+            emitVisualizerHtml('success', `<link rel="stylesheet" href="https://img.cdn.apipost.cn/docs/css7/content-v7.css?20220909" type="text/css" media="screen"> ${html}`, scope);
           } catch (e) {
             // console.log(e);
             emitVisualizerHtml('error', e.toString(), scope);
@@ -813,6 +886,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             print: consoleFn.log,
             async: asyncModule,
             FormData,
+            sm2, // fix bug for 7.0.8
+            sm3, // fix bug for 7.0.8
+            sm4, // fix bug for 7.0.8
             xml2json(xml) {
               return (new x2js()).xml2js(xml);
             },
@@ -823,6 +899,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             ...{ aTools },
             ...{ validCookie },
             ...{ urlJoin },
+            urljoins, // fix bug for 7.0.8
             apt: pm,
             $,
             // Promise,
@@ -1215,6 +1292,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
   // start run
   async function run(definitions, option = {}, initFlag = 0, loopCount = 0) {
+    // console.log(mySandbox.variablesScope)
     option = _.assign({
       project: {},
       collection: [], // 当前项目的所有接口列表
@@ -1251,6 +1329,17 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       if (_.size(RUNNER_RESULT_LOG) > 0) { // 当前有任务时，拒绝新任务
         return;
       }
+
+      // 设置sandbox的 environment变量 和 globals 变量
+      // fix bug for 7.0.8
+      new Array('environment', 'globals').forEach((func) => {
+        if (_.isObject(option[func]) && _.isObject(mySandbox.dynamicVariables[func]) && _.isFunction(mySandbox.dynamicVariables[func].set)) {
+          for (const [key, value] of Object.entries(option[func])) {
+            mySandbox.dynamicVariables[func].set(key, value, false);
+          }
+        }
+      });
+
       // console.log(definitions, dayjs().format('YYYY-MM-DD HH:mm:ss'));
       runInit();
       RUNNER_STOP[RUNNER_REPORT_ID] = 0;
@@ -1315,21 +1404,25 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     const AUTO_CONVERT_FIELD_2_MOCK = typeof requester === 'object' && requester.AUTO_CONVERT_FIELD_2_MOCK > 0;
 
 
-    // 设置sandbox的 environment变量 和 globals 变量
-    new Array('environment', 'globals').forEach((func) => {
-      if (_.isObject(option[func]) && _.isObject(mySandbox.dynamicVariables[func]) && _.isFunction(mySandbox.dynamicVariables[func].set)) {
-        for (const [key, value] of Object.entries(option[func])) {
-          mySandbox.dynamicVariables[func].set(key, value, false);
-        }
-      }
-    });
+    // // 设置sandbox的 environment变量 和 globals 变量
+    // new Array('environment', 'globals').forEach((func) => {
+    //   console.log(option[func])
+    //   if (_.isObject(option[func]) && _.isObject(mySandbox.dynamicVariables[func]) && _.isFunction(mySandbox.dynamicVariables[func].set)) {
+    //     for (const [key, value] of Object.entries(option[func])) {
+    //       mySandbox.dynamicVariables[func].set(key, value, false);
+    //     }
+    //   }
+    // });
 
     // 发送对象
     const request = new apipostRequest(_.isObject(requester) ? requester : {});
 
     if (sleep > 0) {
+      // console.log(`sleep`, sleep)
       sleepDelay(sleep);
     }
+
+    // console.log('sleep', sleep)
 
     // 全局断言
     const _global_asserts = _.find(definitions, _.matchesProperty('type', 'assert'));
@@ -1537,7 +1630,17 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 _.forEach(_requestPara.header, (item) => {
                   _script_headers.push(item);
                 });
-                const _script_request_headers = request.formatRequestHeaders(_script_headers, _script_mode);
+
+                // fix bug for 7.0.8
+                const _script_request_headers_raw = request.formatRequestHeaders(_script_headers, _script_mode);
+                const _script_request_headers = {};
+
+                if (_.isPlainObject(_script_request_headers_raw)) {
+                  _.forEach(_script_request_headers_raw, function (value, key) {
+                    _script_request_headers[mySandbox.replaceIn(key, null, AUTO_CONVERT_FIELD_2_MOCK)] = mySandbox.replaceIn(value, null, AUTO_CONVERT_FIELD_2_MOCK);
+                  });
+                }
+
                 const _script_header_map = {
                   urlencoded: 'application/x-www-form-urlencoded',
                   none: '',
@@ -1548,7 +1651,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 const _script_querys = {};
                 if (_.has(_requestPara, 'query')) {
                   _.forEach(request.formatQueries(_requestPara.query), (value, key) => {
-                    _script_querys[key] = value;
+                    // _script_querys[key] = value; // fix bug for 7.0.8
+                    _script_querys[mySandbox.replaceIn(key, null, AUTO_CONVERT_FIELD_2_MOCK)] = mySandbox.replaceIn(value, null, AUTO_CONVERT_FIELD_2_MOCK);
                   });
                 }
 
@@ -1589,7 +1693,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     _script_pre_url = `http://${_script_pre_url}`;
                   }
 
-                  _script_url = urlJoin(_script_pre_url, _script_url);
+                  // _script_url = urlJoin(_script_pre_url, _script_url);
+                  _script_url = urljoins(_script_pre_url, _script_url);// fix bug for 7.0.8
 
                   if (_.endsWith(_script_pre_url, '/')) { // fix bug
                     _script_url = _.replace(_script_url, `${_script_pre_url}:`, `${_script_pre_url.substr(0, _script_pre_url.length - 1)}:`);
@@ -1793,7 +1898,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     _pre_url = `http://${_pre_url}`;
                   }
 
-                  _url = urlJoin(_pre_url, _url);
+                  // _url = urlJoin(_pre_url, _url);
+                  _url = urljoins(_pre_url, _url); // fix bug for 7.0.8
 
                   if (_.endsWith(_pre_url, '/')) { // fix bug
                     _url = _.replace(_url, `${_pre_url}:`, `${_pre_url.substr(0, _pre_url.length - 1)}:`);
@@ -1830,7 +1936,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         const _targetHeaderCookie = _.find(_request.request.header.parameter, o => _.trim(_.toLower(o.key)) == 'cookie');
 
                         if (_targetHeaderCookie && _targetHeaderCookie.is_checked > 0) {
-                          _targetHeaderCookie.value = `${_cookieArr.join('&')}&${_targetHeaderCookie.value}`;
+                          _targetHeaderCookie.value = `${_cookieArr.join(';')};${_targetHeaderCookie.value}`; // fix bug for 7.0.8
                         } else {
                           _request.request.header.parameter.push({
                             key: 'cookie',
@@ -2068,33 +2174,35 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 if (!_.isArray(initDefinitions)) {
                   // console.log(initDefinitions);
                 }
+                // fix bug for 7.0.8
+                if (_.isArray(initDefinitions)) {
+                  initDefinitions.forEach((item) => {
+                    if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
+                      const _iteration_id = uuid.v4();
 
-                initDefinitions.forEach((item) => {
-                  if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
-                    const _iteration_id = uuid.v4();
+                      RUNNER_RESULT_LOG[_iteration_id] = {
+                        test_id: item.test_id,
+                        report_id: RUNNER_REPORT_ID,
+                        parent_id: item.parent_id,
+                        event_id: item.event_id,
+                        iteration_id: _iteration_id,
+                        type: item.type,
+                        target_id: item.target_id,
+                        request: item.request,
+                        response: {},
+                        http_error: -2,
+                        assert: [],
+                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+                      };
 
-                    RUNNER_RESULT_LOG[_iteration_id] = {
-                      test_id: item.test_id,
-                      report_id: RUNNER_REPORT_ID,
-                      parent_id: item.parent_id,
-                      event_id: item.event_id,
-                      iteration_id: _iteration_id,
-                      type: item.type,
-                      target_id: item.target_id,
-                      request: item.request,
-                      response: {},
-                      http_error: -2,
-                      assert: [],
-                      datetime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-                    };
+                      ignoreEvents.push(RUNNER_RESULT_LOG[_iteration_id]);
+                    }
 
-                    ignoreEvents.push(RUNNER_RESULT_LOG[_iteration_id]);
-                  }
-
-                  if (_.isArray(item.children)) {
-                    getIgnoreAllApis(item.children);
-                  }
-                });
+                    if (_.isArray(item.children)) {
+                      getIgnoreAllApis(item.children);
+                    }
+                  });
+                }
               }(initDefinitions));
 
               const _runReport = calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name, env });
@@ -2157,8 +2265,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 failedTable.push(
                   [{ content: '', colSpan: 2 }],
-                  [{ content: '#'.underline.red, hAlign: 'center' }, { content: 'failure'.underline.red, hAlign: 'left' }, { content: 'detail'.underline.red, hAlign: 'left' }],
-                );
+                  [{ content: '#'.underline?.red, hAlign: 'center' }, { content: 'failure'.underline?.red, hAlign: 'left' }, { content: 'detail'.underline?.red, hAlign: 'left' }],
+                ); // fix bug for 7.0.8 bug
 
                 _.forEach(_runReport.assert_errors, (item) => {
                   _.forEach(item.assert, (assert) => {
