@@ -28,7 +28,7 @@
   "dependencies": {
     "ajax-for-node": "^1.0.9",
     "apipost-inside-tools": "^0.1.10",
-    "apipost-send": "^0.0.37",
+    "apipost-send": "^0.0.38",
     "apipost-tools": "^0.0.20",
     "art-template": "^4.13.2",
     "async": "^3.2.4",
