@@ -1417,9 +1417,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     // 发送对象
     const request = new apipostRequest(_.isObject(requester) ? requester : {});
 
-    if (sleep > 0) {
-      // console.log(`sleep`, sleep)
-      sleepDelay(sleep);
+    // fix bug for 7.0.8
+    if (option.sleep > 0) {
+      sleepDelay(option.sleep);
     }
 
     // console.log('sleep', sleep)
@@ -1962,6 +1962,24 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     }
                   }
                 }
+                
+                //如果是mock环境，则携带apipost_id
+                if(`${option.env_id}`==='-2'){
+                  //判断query数组内是否包含apipost_id
+                  const requestApipostId=_request?.request?.query?.parameter.find(item=>item.key==='apipost_id');
+                  if(_.isUndefined(requestApipostId)){
+                    _request.request.query.parameter.push({
+                      key: 'apipost_id',
+                      value:_request.target_id.substr(0,6),
+                      description: '',
+                      not_null: 1,
+                      field_type: 'String',
+                      type: 'Text',
+                      is_checked: 1,
+                    });
+                  }
+                }
+                
 
                 try {
                   // 合并请求参数
