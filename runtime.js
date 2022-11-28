@@ -1417,9 +1417,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     // 发送对象
     const request = new apipostRequest(_.isObject(requester) ? requester : {});
 
-    if (sleep > 0) {
-      // console.log(`sleep`, sleep)
-      sleepDelay(sleep);
+    // fix bug for 7.0.8
+    if (option.sleep > 0) {
+      sleepDelay(option.sleep);
     }
 
     // console.log('sleep', sleep)
