@@ -1,6 +1,6 @@
 {
   "name": "apipost-runtime",
-  "version": "1.1.61",
+  "version": "1.1.62",
   "description": "apipost-runtime 支持单接口http请求、自动化测试",
   "main": "./dist/index.js",
   "files": [
@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lib": "rollup -c rollup.config.js ",
-    "build": "npm version patch && rollup -c rollup.config.js && npm publish"
+    "build": "rollup -c rollup.config.js ",
+    "build-publish": "npm version patch && rollup -c rollup.config.js && npm publish"
   },
   "repository": {
     "type": "git",
@@ -28,6 +28,7 @@
   "dependencies": {
     "ajax-for-node": "^1.0.9",
     "apipost-inside-tools": "^0.1.10",
+    "apipost-mock": "^1.0.2",
     "apipost-send": "^0.0.38",
     "apipost-tools": "^0.0.20",
     "art-template": "^4.13.2",
@@ -47,7 +48,6 @@
     "json5": "^2.2.1",
     "jsonpath": "^1.1.1",
     "lodash": "^4.17.21",
-    "mockjs": "^1.1.0",
     "moment": "^2.29.4",
     "rollup-plugin-commonjs": "^10.1.0",
     "sm-crypto": "^0.3.11",
