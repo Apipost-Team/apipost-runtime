@@ -1,13 +1,12 @@
 {
   "name": "apipost-runtime",
-  "version": "1.1.62",
+  "version": "1.1.63",
   "description": "apipost-runtime 支持单接口http请求、自动化测试",
   "main": "./dist/index.js",
   "files": [
     "dist"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rollup -c rollup.config.js ",
     "build-publish": "npm version patch && rollup -c rollup.config.js && npm publish"
   },
