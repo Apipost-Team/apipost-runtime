@@ -1797,7 +1797,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   data: _script_bodys,
                   headers: _script_request_headers,
                 };
-
+                
+                if (!_.isObject(RUNNER_RESULT_LOG)) {
+                  RUNNER_RESULT_LOG = {};
+                }
                 RUNNER_RESULT_LOG[definition.iteration_id] = {
                   test_id: definition.test_id,
                   report_id: RUNNER_REPORT_ID,
@@ -1859,7 +1862,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 }
 
                 // 重新渲染请求参数
-                let _target = RUNNER_RESULT_LOG[definition.iteration_id];
+                let _target = _.isObject(RUNNER_RESULT_LOG) ? RUNNER_RESULT_LOG[definition.iteration_id] : {};
 
                 if (typeof _target === 'object' && _.isObject(_target.beforeRequest)) {
                   new Array('query', 'header', 'body').forEach((type) => {
