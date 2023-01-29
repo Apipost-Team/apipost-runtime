@@ -56,6 +56,13 @@
     "uuid": "^8.3.2",
     "vm2": "^3.9.10",
     "x2js": "^3.4.3",
+    "mssql": "^9.1.1",
+    "mysql2": "^3.0.1",
+    "json-2-csv": "^3.18.0",
+    "testdata-to-apipost-json": "^0.0.1",
+    "clickhouse": "^2.6.0",
+    "pg": "^8.9.0",
+    "atomic-sleep": "^1.0.0",
     "zlib": "^1.0.5"
   },
   "peerDependencies": {
