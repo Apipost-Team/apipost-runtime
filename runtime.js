@@ -13,7 +13,7 @@ const apipostRequest = require('apipost-send'),
   chai = require('chai'),
   JSON5 = require('json5'),
   uuid = require('uuid'),
-  Mock = require('mockjs'),
+  Mock = require('apipost-mock'),
   CryptoJS = require('crypto-js'),
   jsonpath = require('jsonpath'),
   x2js = require('x2js'),
@@ -29,6 +29,15 @@ const apipostRequest = require('apipost-send'),
   aTools = require('apipost-tools'),
   validCookie = require('check-valid-cookie'),
   urlJoin = require('url-join'), // + new add 必须 4.0.1版本
+  fs = require('fs'),// for 7.0.13
+  path = require('path'),// for 7.0.13
+  mysql = require('mysql2'), // for 7.0.13
+  mssql = require('mssql'), // for 7.0.13
+  json2csv = require('json-2-csv'),// for 7.0.13
+  csv2json = require('testdata-to-apipost-json'),// for 7.0.13
+  { ClickHouse } = require('clickhouse'), // for 7.0.13
+  { pgClient } = require('pg'), // for 7.0.13
+  sleep = require('atomic-sleep'), // ++ new add on for // fix 自动化测试有等待时的卡顿问题 for 7.0.13
   artTemplate = require('art-template');
 
 // cli console
@@ -228,7 +237,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       }
 
       if (variablesScope.hasOwnProperty(type)) {
-        return _.isPlainObject(variablesScope[type]) ? variablesScope[type] : {};
+        return _.isObject(variablesScope[type]) ? variablesScope[type] : {};
       }
       const allVariables = {};
       Object.keys(variablesScope).forEach((type) => {
@@ -432,7 +441,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     function emitAssertResult(status, expect, result, scope) {
       if (typeof scope !== 'undefined' && _.isObject(scope) && _.isArray(scope.assert)) {
         // 更新日志
-        const item = RUNNER_RESULT_LOG[scope.iteration_id];
+        const item = _.isObject(RUNNER_RESULT_LOG) ? RUNNER_RESULT_LOG[scope.iteration_id] : {};
 
         if (item) {
           if (!_.isArray(item.assert)) {
@@ -459,15 +468,18 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     function emitTargetPara(data, scope) {
       if (typeof scope !== 'undefined' && _.isObject(scope)) {
         // 更新日志
-        const item = RUNNER_RESULT_LOG[scope.iteration_id];
 
-        if (item) {
-          switch (data.action) {
-            case 'SCRIPT_ERROR':
-              if (item.type == 'api') {
-                _.set(item, `script_error.${data.eventName}`, data.data);
-              }
-              break;
+        if (_.isObject(RUNNER_RESULT_LOG)) {
+          const item = RUNNER_RESULT_LOG[scope.iteration_id];
+
+          if (item) {
+            switch (data.action) {
+              case 'SCRIPT_ERROR':
+                if (item.type == 'api') {
+                  _.set(item, `script_error.${data.eventName}`, data.data);
+                }
+                break;
+            }
           }
         }
       }
@@ -476,10 +488,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     // 发送可视化结果
     function emitVisualizerHtml(status, html, scope) {
       if (typeof scope !== 'undefined' && _.isObject(scope)) {
-        const item = RUNNER_RESULT_LOG[scope.iteration_id];
+        if (_.isObject(RUNNER_RESULT_LOG)) {
+          const item = RUNNER_RESULT_LOG[scope.iteration_id];
 
-        if (item) {
-          item.visualizer_html = { status, html };
+          if (item) {
+            item.visualizer_html = { status, html };
+          }
         }
       }
     }
@@ -654,107 +668,110 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       // 请求参数相关
       if (typeof scope !== 'undefined' && _.isObject(scope) && _.has(scope, 'request.request')) {
         // 更新日志
-        const item = RUNNER_RESULT_LOG[scope.iteration_id];
 
-        if (item) {
-          Object.defineProperty(pm, 'setRequestQuery', {
-            configurable: true,
-            value(key, value) {
-              if (_.trim(key) != '') {
-                if (!_.has(item, 'beforeRequest.query')) {
-                  _.set(item, 'beforeRequest.query', []);
+        if (_.isObject(RUNNER_RESULT_LOG)) {
+          const item = RUNNER_RESULT_LOG[scope.iteration_id];
+
+          if (item) {
+            Object.defineProperty(pm, 'setRequestQuery', {
+              configurable: true,
+              value(key, value) {
+                if (_.trim(key) != '') {
+                  if (!_.has(item, 'beforeRequest.query')) {
+                    _.set(item, 'beforeRequest.query', []);
+                  }
+
+                  item.beforeRequest.query.push({
+                    action: 'set',
+                    key,
+                    value,
+                  });
                 }
+              },
+            });
 
-                item.beforeRequest.query.push({
-                  action: 'set',
-                  key,
-                  value,
-                });
-              }
-            },
-          });
+            Object.defineProperty(pm, 'removeRequestQuery', {
+              configurable: true,
+              value(key) {
+                if (_.trim(key) != '') {
+                  if (!_.has(item, 'beforeRequest.query')) {
+                    _.set(item, 'beforeRequest.query', []);
+                  }
 
-          Object.defineProperty(pm, 'removeRequestQuery', {
-            configurable: true,
-            value(key) {
-              if (_.trim(key) != '') {
-                if (!_.has(item, 'beforeRequest.query')) {
-                  _.set(item, 'beforeRequest.query', []);
+                  item.beforeRequest.query.push({
+                    action: 'remove',
+                    key,
+                  });
                 }
+              },
+            });
 
-                item.beforeRequest.query.push({
-                  action: 'remove',
-                  key,
-                });
-              }
-            },
-          });
+            Object.defineProperty(pm, 'setRequestHeader', {
+              configurable: true,
+              value(key, value) {
+                if (_.trim(key) != '') {
+                  if (!_.has(item, 'beforeRequest.header')) {
+                    _.set(item, 'beforeRequest.header', []);
+                  }
 
-          Object.defineProperty(pm, 'setRequestHeader', {
-            configurable: true,
-            value(key, value) {
-              if (_.trim(key) != '') {
-                if (!_.has(item, 'beforeRequest.header')) {
-                  _.set(item, 'beforeRequest.header', []);
+                  item.beforeRequest.header.push({ // fix bug for 7.0.8
+                    action: 'set',
+                    key: String(key),
+                    value: String(value),
+                  });
                 }
+              },
+            });
 
-                item.beforeRequest.header.push({ // fix bug for 7.0.8
-                  action: 'set',
-                  key: String(key),
-                  value: String(value),
-                });
-              }
-            },
-          });
+            Object.defineProperty(pm, 'removeRequestHeader', {
+              configurable: true,
+              value(key) {
+                if (_.trim(key) != '') {
+                  if (!_.has(item, 'beforeRequest.header')) {
+                    _.set(item, 'beforeRequest.header', []);
+                  }
 
-          Object.defineProperty(pm, 'removeRequestHeader', {
-            configurable: true,
-            value(key) {
-              if (_.trim(key) != '') {
-                if (!_.has(item, 'beforeRequest.header')) {
-                  _.set(item, 'beforeRequest.header', []);
+                  item.beforeRequest.header.push({
+                    action: 'remove',
+                    key,
+                  });
                 }
+              },
+            });
 
-                item.beforeRequest.header.push({
-                  action: 'remove',
-                  key,
-                });
-              }
-            },
-          });
+            Object.defineProperty(pm, 'setRequestBody', {
+              configurable: true,
+              value(key, value) {
+                if (_.trim(key) != '') {
+                  if (!_.has(item, 'beforeRequest.body')) {
+                    _.set(item, 'beforeRequest.body', []);
+                  }
 
-          Object.defineProperty(pm, 'setRequestBody', {
-            configurable: true,
-            value(key, value) {
-              if (_.trim(key) != '') {
-                if (!_.has(item, 'beforeRequest.body')) {
-                  _.set(item, 'beforeRequest.body', []);
+                  item.beforeRequest.body.push({
+                    action: 'set',
+                    key,
+                    value,
+                  });
                 }
+              },
+            });
 
-                item.beforeRequest.body.push({
-                  action: 'set',
-                  key,
-                  value,
-                });
-              }
-            },
-          });
+            Object.defineProperty(pm, 'removeRequestBody', {
+              configurable: true,
+              value(key) {
+                if (_.trim(key) != '') {
+                  if (!_.has(item, 'beforeRequest.body')) {
+                    _.set(item, 'beforeRequest.body', []);
+                  }
 
-          Object.defineProperty(pm, 'removeRequestBody', {
-            configurable: true,
-            value(key) {
-              if (_.trim(key) != '') {
-                if (!_.has(item, 'beforeRequest.body')) {
-                  _.set(item, 'beforeRequest.body', []);
+                  item.beforeRequest.body.push({
+                    action: 'remove',
+                    key,
+                  });
                 }
-
-                item.beforeRequest.body.push({
-                  action: 'remove',
-                  key,
-                });
-              }
-            },
-          });
+              },
+            });
+          }
         }
       }
 
@@ -889,6 +906,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             sm2, // fix bug for 7.0.8
             sm3, // fix bug for 7.0.8
             sm4, // fix bug for 7.0.8
+            mysql, mssql, ClickHouse, pgClient, fs, path, csv2json, json2csv, // for 7.0.13
             xml2json(xml) {
               return (new x2js()).xml2js(xml);
             },
@@ -906,19 +924,19 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             request: pm.request ? _.cloneDeep(pm.request) : {},
             response: pm.response ? _.assign(pm.response, { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
             expect: chai.expect,
-            sleep(ms) {
-              const end = Date.now() + parseInt(ms);
-              while (true) {
-                if (Date.now() > end) {
-                  return;
-                }
-              }
-            },
+            sleep: sleep,
+            // sleep(ms) {
+            //   const end = Date.now() + parseInt(ms);
+            //   while (true) {
+            //     if (Date.now() > end) {
+            //       return;
+            //     }
+            //   }
+            // },
           }, variablesScope),
         })).run(new vm2.VMScript(code));
         typeof callback === 'function' && callback(null, pm.response);
       } catch (err) {
-        console.log('eeeee', err);
         emitTargetPara({
           action: 'SCRIPT_ERROR',
           eventName,
@@ -942,20 +960,65 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
   // sleep 延迟方法
   function sleepDelay(ms) {
-    const end = Date.now() + ms;
-    while (true) {
-      if (Date.now() > end) {
-        return;
-      }
-    }
+    sleep(ms)
+    // const end = Date.now() + ms;
+    // while (true) {
+    //   if (Date.now() > end) {
+    //     return;
+    //   }
+    // }
   }
 
   // 根据测试条件返回布尔值
   function returnBoolean(exp, compare, value) {
+    // console.log(`PREV_REQUEST:`,exp,PREV_REQUEST)
+
     let bool = false;
     // console.log('returnBoolean', exp, compare, value);
     if (exp === '') { // fix bug
       return compare == 'null';
+    }
+
+    // get request
+    if (typeof exp == 'string' && _.has(PREV_REQUEST, 'request') && _.startsWith(exp, `{{request\.`) && _.endsWith(exp, '}}')) {
+      let _path = String(_.trimEnd(_.trimStart(exp, `{{request`), '}}'));
+
+      if (_path.substr(0, 1) == '.') {
+        _path = _path.substr(1)
+      }
+
+      exp = _.get(PREV_REQUEST.request, _path);
+    }
+
+    if (typeof value == 'string' && _.has(PREV_REQUEST, 'request') && _.startsWith(value, `{{request\.`) && _.endsWith(value, '}}')) {
+      let _path = String(_.trimEnd(_.trimStart(value, `{{request`), '}}'));
+
+      if (_path.substr(0, 1) == '.') {
+        _path = _path.substr(1)
+      }
+
+      value = _.get(PREV_REQUEST.request, _path);
+    }
+
+    // get response
+    if (typeof exp == 'string' && _.has(PREV_REQUEST, 'response') && _.startsWith(exp, `{{response\.`) && _.endsWith(exp, '}}')) {
+      let _path = String(_.trimEnd(_.trimStart(exp, `{{response`), '}}'));
+
+      if (_path.substr(0, 1) == '.') {
+        _path = _path.substr(1)
+      }
+
+      exp = _.get(PREV_REQUEST.response, _path);
+    }
+
+    if (typeof value == 'string' && _.has(PREV_REQUEST, 'response') && _.startsWith(value, `{{response\.`) && _.endsWith(value, '}}')) {
+      let _path = String(_.trimEnd(_.trimStart(value, `{{response`), '}}'));
+
+      if (_path.substr(0, 1) == '.') {
+        _path = _path.substr(1)
+      }
+
+      value = _.get(PREV_REQUEST.response, _path);
     }
 
     switch (compare) {
@@ -1259,7 +1322,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         test_events: _.filter(definitionList, o => o.test_id == _test_id),
       });
     }
-    // console.log(report);
     log = null;
     return report;
   }
@@ -1291,6 +1353,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     RUNNER_RUNTIME_POINTER = 0;
 
   // start run
+  const PREV_REQUEST = {
+    request: {},
+    response: {},
+    iterationData: {},
+    iterationCount: 0
+  }
+
   async function run(definitions, option = {}, initFlag = 0, loopCount = 0) {
     // console.log(mySandbox.variablesScope)
     option = _.assign({
@@ -1448,9 +1517,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
           ...{ globals },
         });
 
+        _.set(PREV_REQUEST, 'iterationCount', loopCount);
+        // console.log(`loopCount`, loopCount, definition.iterationData.phone)
         if (_.isObject(definition.iterationData)) {
+          _.set(PREV_REQUEST, 'iterationData', definition.iterationData);
           for (const [key, value] of Object.entries(definition.iterationData)) {
-            // console.log(key, value);
             mySandbox.dynamicVariables.iterationData.set(key, value, false);
           }
         }
@@ -1658,6 +1729,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
                 // script_body
                 let _script_bodys = {};
+
                 switch (_script_mode) {
                   case 'none':
                     _script_bodys = '';
@@ -1672,10 +1744,16 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                       });
                     }
                     break;
-                  default:
+                  case 'json': // fix bug for 7.0.13
                     if (_.has(definition, 'request.request.body.raw')) {
                       _script_bodys = mySandbox.replaceIn(request.formatRawJsonBodys(definition.request.request.body.raw), null, AUTO_CONVERT_FIELD_2_MOCK);
-                      // _script_bodys = mySandbox.replaceIn(definition.request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK); // fix bug
+                    } else {
+                      _script_bodys = '';
+                    }
+                    break;
+                  default: // fix bug for 7.0.13
+                    if (_.has(definition, 'request.request.body.raw')) {
+                      _script_bodys = mySandbox.replaceIn(definition.request.request.body.raw, null, AUTO_CONVERT_FIELD_2_MOCK);
                     } else {
                       _script_bodys = '';
                     }
@@ -1830,39 +1908,49 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                         }
                       });
                     }
-
-                    if (type == 'body' && _.has(_request, 'request.body.raw') && aTools.isJson5(_request.request.body.raw) && _.isArray(_target.beforeRequest.body) && _target.beforeRequest.body.length > 0) {
+                    // fix bug body 参数为空时，预执行脚本设置body无效的bug for 7.0.13
+                    if (type == 'body' && _.has(_request, 'request.body.raw') && _.isArray(_target.beforeRequest.body) && _target.beforeRequest.body.length > 0) {
                       let _rawParse = null;
 
-                      try {
-                        _rawParse = JSONbig.parse(stripJsonComments(_request.request.body.raw));
-                      } catch (e) {
-                        _rawParse = JSON5.parse(_request.request.body.raw);
-                      }
-
-                      if (_rawParse) {
-                        _target.beforeRequest[type].forEach((_item) => {
-                          if (_item.action == 'set') {
-                            if (_.isObject(_item.key) || _.isUndefined(_item.value)) { // 允许直接修改请求体 new features
-                              if (_.isObject(_item.key)) {
-                                _request.request.body.raw = _rawParse = JSONbig.parse(mySandbox.replaceIn(JSONbig.stringify(_item.key), null, AUTO_CONVERT_FIELD_2_MOCK));
-                              } else if (_.isString(_item.key) || _.isNumber(_item.key)) {
-                                _request.request.body.raw = _rawParse = mySandbox.replaceIn(String(_item.key), null, AUTO_CONVERT_FIELD_2_MOCK); // fix bug
-                              }
+                      _target.beforeRequest[type].forEach((_item) => {
+                        if (_item.action == 'set') {
+                          if (_.isObject(_item.key) || _.isUndefined(_item.value)) { // 允许直接修改请求体 new features
+                            if (_.isObject(_item.key)) {
+                              _request.request.body.raw = mySandbox.replaceIn(JSONbig.stringify(_item.key), null, AUTO_CONVERT_FIELD_2_MOCK);
                             } else if (_.isString(_item.key)) {
-                              _.set(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK), mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK));
+                              _request.request.body.raw = mySandbox.replaceIn(String(_item.key), null, AUTO_CONVERT_FIELD_2_MOCK); // fix bug
+                            } else if (_.isNumber(_item.key)) {
+                              _request.request.body.raw = String(_item.key);
                             }
-                          } else if (_item.action == 'remove') {
-                            _.unset(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK));
-                          }
-                        });
+                          } else if (_.isString(_item.key) && aTools.isJson5(_request.request.body.raw)) {
+                            try {
+                              _rawParse = JSONbig.parse(stripJsonComments(_request.request.body.raw));
+                            } catch (e) {
+                              _rawParse = JSON5.parse(_request.request.body.raw);
+                            }
+                            _.set(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK), mySandbox.replaceIn(_item.value, null, AUTO_CONVERT_FIELD_2_MOCK));
 
-                        if (_.isObject(_rawParse)) {
-                          _request.request.body.raw = JSONbig.stringify(_rawParse);
-                        } else {
-                          _request.request.body.raw = _rawParse;
+                            if (_.isObject(_rawParse)) {
+                              _request.request.body.raw = JSONbig.stringify(_rawParse);
+                            } else {
+                              _request.request.body.raw = _rawParse;
+                            }
+                          }
+                        } else if (_item.action == 'remove' && aTools.isJson5(_request.request.body.raw)) {
+                          try {
+                            _rawParse = JSONbig.parse(stripJsonComments(_request.request.body.raw));
+                          } catch (e) {
+                            _rawParse = JSON5.parse(_request.request.body.raw);
+                          }
+                          _.unset(_rawParse, mySandbox.replaceIn(_item.key, null, AUTO_CONVERT_FIELD_2_MOCK));
+
+                          if (_.isObject(_rawParse)) {
+                            _request.request.body.raw = JSONbig.stringify(_rawParse);
+                          } else {
+                            _request.request.body.raw = _rawParse;
+                          }
                         }
-                      }
+                      });
                     }
                   });
                 }
@@ -1962,15 +2050,15 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     }
                   }
                 }
-                
+
                 //如果是mock环境，则携带apipost_id
-                if(`${option.env_id}`==='-2'){
+                if (`${option.env_id}` === '-2') {
                   //判断query数组内是否包含apipost_id
-                  const requestApipostId=_request?.request?.query?.parameter.find(item=>item.key==='apipost_id');
-                  if(_.isUndefined(requestApipostId)){
+                  const requestApipostId = _request?.request?.query?.parameter.find(item => item.key === 'apipost_id');
+                  if (_.isUndefined(requestApipostId)) {
                     _request.request.query.parameter.push({
                       key: 'apipost_id',
-                      value:_request.target_id.substr(0,6),
+                      value: _request.target_id.substr(0, 6),
                       description: '',
                       not_null: 1,
                       field_type: 'String',
@@ -1979,9 +2067,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     });
                   }
                 }
-                
+
 
                 try {
+                  // console.log(_request)
                   // 合并请求参数
                   res = await request.request(_request);
                 } catch (e) {
@@ -2106,6 +2195,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   });
                 }
 
+                // fit support response && request
+                if (_.isObject(_request_para)) {
+                  _.set(PREV_REQUEST, 'request', _request_para)
+                }
+
+                if (_.has(res, 'data.response')) {
+                  _.set(PREV_REQUEST, 'response', res.data.response)
+                }
                 // fix bug
                 if (definition.event_id != '0' && scene == 'auto_test') {
                   if (_.find(_target.assert, _.matchesProperty('status', 'error'))) {
@@ -2127,30 +2224,47 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               }
               break;
             case 'for':
-              // console.log('for', definition);
               if (_.isArray(definition.children) && definition.children.length > 0) {
+                let _for_option = _.cloneDeep(option);
+
+                if (_.get(definition, 'condition.enable_data') > 0 && _.isArray(_.get(definition, 'condition.iterationData'))) {
+                  _for_option.iterationData = definition.condition.iterationData
+                }
+
                 for (let i = 0; i < mySandbox.replaceIn(definition.condition.limit); i++) {
-                  await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1, i);
+                  await run(definition.children, _.assign(_for_option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1, i);
                 }
               }
               break;
             case 'while':
               if (_.isArray(definition.children) && definition.children.length > 0) {
+                let _while_option = _.cloneDeep(option);
+
+                if (_.get(definition, 'condition.enable_data') > 0 && _.isArray(_.get(definition, 'condition.iterationData'))) {
+                  _while_option.iterationData = definition.condition.iterationData
+                }
+
                 const end = Date.now() + parseInt(definition.condition.timeout);
                 _.set(definition, 'runtime.condition', `${mySandbox.replaceIn(definition.condition.var)} ${definition.condition.compare} ${mySandbox.replaceIn(definition.condition.value)}`);
 
+                let _i = 0;
                 while ((returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value)))) {
                   if (Date.now() > end) {
                     break;
                   }
-                  let _i = 0;
-                  await run(definition.children, _.assign(option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1, _i);
+
+                  await run(definition.children, _.assign(_while_option, { sleep: parseInt(definition.condition.sleep) }), initFlag + 1, _i);
                   _i++;
                 }
               }
               break;
             case 'begin':
-              await run(definition.children, option, initFlag + 1);
+              let _begin_option = _.cloneDeep(option);
+
+              if (_.get(definition, 'condition.enable_data') > 0 && _.isArray(_.get(definition, 'condition.iterationData'))) {
+                _begin_option.iterationData = definition.condition.iterationData
+              }
+              await run(definition.children, _begin_option, initFlag + 1);
               break;
             default:
               break;
@@ -2198,22 +2312,24 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                     if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
                       const _iteration_id = uuid.v4();
 
-                      RUNNER_RESULT_LOG[_iteration_id] = {
-                        test_id: item.test_id,
-                        report_id: RUNNER_REPORT_ID,
-                        parent_id: item.parent_id,
-                        event_id: item.event_id,
-                        iteration_id: _iteration_id,
-                        type: item.type,
-                        target_id: item.target_id,
-                        request: item.request,
-                        response: {},
-                        http_error: -2,
-                        assert: [],
-                        datetime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-                      };
+                      if (_.isObject(RUNNER_RESULT_LOG)) {
+                        RUNNER_RESULT_LOG[_iteration_id] = {
+                          test_id: item.test_id,
+                          report_id: RUNNER_REPORT_ID,
+                          parent_id: item.parent_id,
+                          event_id: item.event_id,
+                          iteration_id: _iteration_id,
+                          type: item.type,
+                          target_id: item.target_id,
+                          request: item.request,
+                          response: {},
+                          http_error: -2,
+                          assert: [],
+                          datetime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+                        };
 
-                      ignoreEvents.push(RUNNER_RESULT_LOG[_iteration_id]);
+                        ignoreEvents.push(RUNNER_RESULT_LOG[_iteration_id]);
+                      }
                     }
 
                     if (_.isArray(item.children)) {
@@ -2301,7 +2417,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
               ignoreEvents = null;
             } else { // 接口请求
-              const _http = RUNNER_RESULT_LOG[definition.iteration_id];
+              const _http = _.isObject(RUNNER_RESULT_LOG) ? RUNNER_RESULT_LOG[definition.iteration_id] : {};
 
               emitRuntimeEvent({
                 action: 'http_complate',
