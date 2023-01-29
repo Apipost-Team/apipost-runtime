@@ -37,7 +37,7 @@ const apipostRequest = require('apipost-send'),
   csv2json = require('testdata-to-apipost-json'),// for 7.0.13
   { ClickHouse } = require('clickhouse'), // for 7.0.13
   { pgClient } = require('pg'), // for 7.0.13
-  sleep = require('atomic-sleep'), // ++ new add on for // fix 自动化测试有等待时的卡顿问题 for 7.0.13
+  atomicSleep = require('atomic-sleep'), // ++ new add on for // fix 自动化测试有等待时的卡顿问题 for 7.0.13
   artTemplate = require('art-template');
 
 // cli console
@@ -924,7 +924,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             request: pm.request ? _.cloneDeep(pm.request) : {},
             response: pm.response ? _.assign(pm.response, { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
             expect: chai.expect,
-            sleep: sleep,
+            sleep: atomicSleep,
             // sleep(ms) {
             //   const end = Date.now() + parseInt(ms);
             //   while (true) {
@@ -960,7 +960,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
   // sleep 延迟方法
   function sleepDelay(ms) {
-    sleep(ms)
+    atomicSleep(ms)
     // const end = Date.now() + ms;
     // while (true) {
     //   if (Date.now() > end) {
