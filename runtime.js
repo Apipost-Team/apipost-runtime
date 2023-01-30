@@ -37,6 +37,7 @@ const apipostRequest = require('apipost-send'),
   csv2json = require('testdata-to-apipost-json'),// for 7.0.13
   { ClickHouse } = require('clickhouse'), // for 7.0.13
   { pgClient } = require('pg'), // for 7.0.13
+  child_process = require('child_process'),// for 7.0.13
   atomicSleep = require('atomic-sleep'), // ++ new add on for // fix 自动化测试有等待时的卡顿问题 for 7.0.13
   artTemplate = require('art-template');
 
@@ -244,7 +245,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         _.assign(allVariables, variablesScope[type]);
       });
 
-      // console.log(allVariables);
       return allVariables;
     }
 
@@ -314,6 +314,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         },
         toObject() {
           return variablesScope.iterationData;
+        },
+        clear() {
+          if (_.isObject(variablesScope.iterationData)) {
+            _.forEach(variablesScope.iterationData, (value, key) => {
+              delete variablesScope.iterationData[key];
+            });
+          }
+          variablesScope.iterationData = {};
         },
       },
     });
@@ -836,6 +844,51 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         },
       });
 
+      // 执行外部程序
+      Object.defineProperty(pm, 'execute', {
+        configurable: true,
+        value: function (file, args) {
+          if (_.isString(file)) {
+            try {
+              let command = ``;
+              switch (_.toLower(file.substr(file.lastIndexOf(".")))) {
+                case '.go':
+                  command = `go run `;
+                  break;
+                case '.php':
+                  command = `php -f `;
+                  break;
+                case '.py':
+                  command = `python `
+                  break;
+                case '.js':
+                  command = `node `
+                  break;
+                case '.jar':
+                  command = `java -jar `
+                  break;
+                case '.sh':
+                  command = `bash `
+                  break;
+                case '.ruby':
+                  command = `ruby `
+                  break;
+                case '.lua':
+                  command = `lua `
+                  break;
+                case '.bsh':
+                  command = `bsh `
+              }
+
+              if (command != '') {
+                return String(child_process.execSync(`${command} ${file} ${_.join(args, ' ')}`))
+              }
+            }
+            catch (e) { }
+          }
+        },
+      });
+
       Object.defineProperty(pm, 'Visualizing', {
         configurable: true,
         value: (template, data) => {
@@ -906,7 +959,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             sm2, // fix bug for 7.0.8
             sm3, // fix bug for 7.0.8
             sm4, // fix bug for 7.0.8
-            mysql, mssql, ClickHouse, pgClient, fs, path, csv2json, json2csv, // for 7.0.13
+            csv2array: csv2json,
+            mysql, mssql, ClickHouse, pgClient, fs, path, json2csv, // for 7.0.13
             xml2json(xml) {
               return (new x2js()).xml2js(xml);
             },
@@ -925,6 +979,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             response: pm.response ? _.assign(pm.response, { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
             expect: chai.expect,
             sleep: atomicSleep,
+            // child_process
             // sleep(ms) {
             //   const end = Date.now() + parseInt(ms);
             //   while (true) {
@@ -961,20 +1016,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
   // sleep 延迟方法
   function sleepDelay(ms) {
     atomicSleep(ms)
-    // const end = Date.now() + ms;
-    // while (true) {
-    //   if (Date.now() > end) {
-    //     return;
-    //   }
-    // }
   }
 
   // 根据测试条件返回布尔值
   function returnBoolean(exp, compare, value) {
-    // console.log(`PREV_REQUEST:`,exp,PREV_REQUEST)
-
     let bool = false;
-    // console.log('returnBoolean', exp, compare, value);
     if (exp === '') { // fix bug
       return compare == 'null';
     }
@@ -1175,7 +1221,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     const eventResultStatus = {};
 
     Object.values(log).forEach((item) => {
-      // console.log(item.assert);
       // 计算各个event的状态 [ignore, failure, passed]
       if (_.isArray(initDefinitions)) {
         const parent_ids = getInitDefinitionsParentIDs(item.event_id, initDefinitions);
@@ -1361,7 +1406,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
   }
 
   async function run(definitions, option = {}, initFlag = 0, loopCount = 0) {
-    // console.log(mySandbox.variablesScope)
     option = _.assign({
       project: {},
       collection: [], // 当前项目的所有接口列表
@@ -1409,7 +1453,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         }
       });
 
-      // console.log(definitions, dayjs().format('YYYY-MM-DD HH:mm:ss'));
       runInit();
       RUNNER_STOP[RUNNER_REPORT_ID] = 0;
       RUNNER_TOTAL_COUNT = typeof definitions[0] === 'object' ? definitions[0].RUNNER_TOTAL_COUNT : 0;
@@ -1464,7 +1507,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         iterationData = [];
       }
     }
-    // console.log(iterationData);
+
     if (typeof iterationCount === 'undefined') {
       iterationCount = loopCount || 1;
     }
@@ -1491,8 +1534,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       sleepDelay(option.sleep);
     }
 
-    // console.log('sleep', sleep)
-
     // 全局断言
     const _global_asserts = _.find(definitions, _.matchesProperty('type', 'assert'));
     let _global_asserts_script = '';
@@ -1500,7 +1541,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
     if (_global_asserts && _.has(_global_asserts, 'data.content')) {
       _global_asserts_script = _global_asserts.data.content;
     }
-    // console.log(iterationData);
+
     if (_.isArray(definitions) && definitions.length > 0) {
       for (let i = 0; i < definitions.length; i++) {
         const definition = definitions[i];
@@ -1508,7 +1549,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
 
         _.assign(definition, {
           iteration_id: uuid.v4(),  // 每次执行单任务的ID
-          iteration: i,
+          iteration: loopCount,
           iterationData: iterationData[loopCount] ? iterationData[loopCount] : iterationData[0],
           ...{ iterationCount },
           ...{ env_name },
@@ -1518,12 +1559,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
         });
 
         _.set(PREV_REQUEST, 'iterationCount', loopCount);
-        // console.log(`loopCount`, loopCount, definition.iterationData.phone)
+
         if (_.isObject(definition.iterationData)) {
           _.set(PREV_REQUEST, 'iterationData', definition.iterationData);
           for (const [key, value] of Object.entries(definition.iterationData)) {
             mySandbox.dynamicVariables.iterationData.set(key, value, false);
           }
+        } else {
+          mySandbox.dynamicVariables.iterationData.clear();
         }
 
         if (definition.enabled > 0) {
@@ -1548,7 +1591,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               _.set(definition, 'runtime.condition', `${mySandbox.replaceIn(definition.condition.var)} ${definition.condition.compare} ${mySandbox.replaceIn(definition.condition.value)}`);
 
               if (returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value))) {
-                await run(definition.children, option, initFlag + 1);
+                await run(definition.children, option, initFlag + 1, loopCount);
               }
               break;
             case 'request':
@@ -1797,7 +1840,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                   data: _script_bodys,
                   headers: _script_request_headers,
                 };
-                
+
                 if (!_.isObject(RUNNER_RESULT_LOG)) {
                   RUNNER_RESULT_LOG = {};
                 }
@@ -2267,7 +2310,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
               if (_.get(definition, 'condition.enable_data') > 0 && _.isArray(_.get(definition, 'condition.iterationData'))) {
                 _begin_option.iterationData = definition.condition.iterationData
               }
-              await run(definition.children, _begin_option, initFlag + 1);
+              await run(definition.children, _begin_option, initFlag + 1, loopCount);
               break;
             default:
               break;
@@ -2357,7 +2400,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
                 test_report: _runReport,
               });
 
-              // console.log(_runReport)
               // 打印报告
               const reportTable = new Table({
                 style: { padding: 5, head: [], border: [] },
