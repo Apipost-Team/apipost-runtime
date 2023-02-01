@@ -108,7 +108,11 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
   });
 };
 
-const Runtime = function ApipostRuntime(emitRuntimeEvent) {
+/*
+@emitRuntimeEvent:请求脚本参数
+@enableUnSafeShell:是否允许执行不安全脚本
+*/
+const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = true) {
   // 当前流程总错误计数器
   let RUNNER_TOTAL_COUNT = 0, // 需要跑的总event分母
     RUNNER_ERROR_COUNT = 0,
@@ -845,7 +849,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
       });
 
       // 执行外部程序
-      Object.defineProperty(pm, 'execute', {
+      enableUnSafeShell && Object.defineProperty(pm, 'execute', {
         configurable: true,
         value: function (file, args) {
           if (_.isString(file)) {
@@ -960,7 +964,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent) {
             sm3, // fix bug for 7.0.8
             sm4, // fix bug for 7.0.8
             csv2array: csv2json,
-            mysql, mssql, ClickHouse, pgClient, fs, path, json2csv, // for 7.0.13
+            mysql, mssql, ClickHouse, pgClient,
+            fs: enableUnSafeShell ? fs : {},
+            path, json2csv, // for 7.0.13
             xml2json(xml) {
               return (new x2js()).xml2js(xml);
             },
