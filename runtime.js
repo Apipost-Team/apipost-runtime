@@ -1606,7 +1606,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             if (_.has(definition, 'request') && _.isObject(definition.request)) {
                                 // 多环境
                                 let temp_env = _.isObject(definition.temp_env) ? definition.temp_env : {};
-                                if (_.has(definition, 'temp_env') && _.isString(temp_env.pre_url) && temp_env.pre_url != '') {
+                                if (_.has(temp_env, 'pre_url') && _.isString(temp_env.pre_url) && temp_env.pre_url != '') {
                                     env_pre_url = temp_env.pre_url;
                                 }
 
