@@ -1608,6 +1608,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                 let temp_env = definition?.temp_env || {};
                                 if (_.isObject(definition.temp_env) && _.isString(temp_env?.pre_url)){
                                     env_pre_url = _.trim(temp_env.pre_url);
+                                }else{
+                                    // 还原前置url
+                                    env_pre_url = env.env_pre_url;
                                 }
                                 let res = {};
                                 // 拼接全局参数、目录参数、以及脚本
