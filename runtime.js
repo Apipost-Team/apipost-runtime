@@ -1605,15 +1605,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                         case 'api':
                             if (_.has(definition, 'request') && _.isObject(definition.request)) {
                                 // 多环境
-                                if(_.isObject(definition.temp_env)){
-                                    let temp_env = definition.temp_env;
-                                    if(_.isString(temp_env.pre_url)){
-                                        env_pre_url =  _.trim(temp_env.pre_url);
-                                    }else{
-                                        env_pre_url = '';
-                                    }
+                                let temp_env = definition?.temp_env || {};
+                                if (_.isObject(definition.temp_env) && _.isString(temp_env?.pre_url)){
+                                    env_pre_url = _.trim(temp_env.pre_url);
                                 }
-
                                 let res = {};
                                 // 拼接全局参数、目录参数、以及脚本
                                 let _requestPara = {};
