@@ -2036,6 +2036,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
                                         if (_resful.is_checked > 0 && _resful.key !== '') {
                                             _url = _.replace(_url, `:${_resful.key}`, _resful.value);
+                                            _url = _.replace(_url, `{${_resful.key}}`, _resful.value)
                                         }
                                     });
                                 }
