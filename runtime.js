@@ -1545,7 +1545,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
         const _global_asserts = _.find(definitions, _.matchesProperty('type', 'assert'));
         let _global_asserts_script = '';
 
-        if (_global_asserts && _.has(_global_asserts, 'data.content')) {
+        if (_global_asserts && _.has(_global_asserts, 'data.content') && _global_asserts?.enabled > 0) {
             _global_asserts_script = _global_asserts.data.content;
         }
 
