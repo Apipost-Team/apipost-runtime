@@ -148,13 +148,16 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
             if (typeof pool == 'string') {
                 pool = Mock.mock(pool);
-
-                if (typeof start == 'number') {
-                    if (typeof end == 'number') {
-                        return _.sampleSize(pool, _.random(start, end)).join('');
+                try {
+                    if (!_.isNaN(Number(start))) {
+                        if (_.isNaN(Number(end)) === false) {
+                            return _.sampleSize(pool, _.random(start, end)).join('');
+                        }
+                        return _.sampleSize(pool, start).join('');
                     }
-
-                    return _.sampleSize(pool, start).join('');
+                }
+                catch (ex) {
+                    console.log(ex);
                 }
                 return _.sample(pool);
             }
