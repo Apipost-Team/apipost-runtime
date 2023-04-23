@@ -421,7 +421,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
             }).join('|'), 'gi');
 
             variablesStr = _.replace(variablesStr, _regExp, (key) => {
-                const reStr = allVariables[String(_.replace(key, /[{}]/gi, ''))];
+                let reStr = allVariables[String(_.replace(key, /[{}]/gi, ''))];
+                reStr=reStr.replace(/\n/g,'\\n');      //bugfix v7.1.4
                 // console.log(String(_.replace(key, /[{}]/gi, '')), reStr, _regExp);
                 if (typeof reStr !== 'undefined') {
                     return reStr;
