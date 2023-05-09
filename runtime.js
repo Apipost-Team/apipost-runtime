@@ -40,6 +40,7 @@ const apipostRequest = require('apipost-send'),
   child_process = require('child_process'),// for 7.0.13
   atomicSleep = require('atomic-sleep'), // ++ new add on for // fix 自动化测试有等待时的卡顿问题 for 7.0.13
   artTemplate = require('art-template');
+const { getCollectionServerId } = require('./libs/utils')
 
 // cli console
 const cliConsole = function (args) {
@@ -422,8 +423,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
       variablesStr = _.replace(variablesStr, _regExp, (key) => {
         let reStr = allVariables[String(_.replace(key, /[{}]/gi, ''))];
-        if(_.isString(reStr)){
-         reStr = reStr.replace(/\n/g, '\\n');      //bugfix v7.1.4
+        if (_.isString(reStr)) {
+          reStr = reStr.replace(/\n/g, '\\n');      //bugfix v7.1.4
         }
         // console.log(String(_.replace(key, /[{}]/gi, '')), reStr, _regExp);
         if (typeof reStr !== 'undefined') {
@@ -651,7 +652,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
         Object.defineProperty(pm.variables, 'getPreUrl', {
           configurable: true,
           value() {
-            return scope.env_pre_url;
+            const api_server_id = getCollectionServerId(scope?.target_id, scope?.collection);
+            const script_pre_env_url = scope?.env_pre_urls?.[api_server_id];
+            if (_.isUndefined(script_pre_env_url)) {
+              return scope.env_pre_url;
+            }
+            return script_pre_env_url
+           
           },
         });
 
@@ -672,7 +679,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
         Object.defineProperty(pm.environment, 'getPreUrl', {
           configurable: true,
           value() {
-            return scope.env_pre_url;
+            const api_server_id = getCollectionServerId(scope?.target_id, scope?.collection);
+            const script_pre_env_url = scope?.env_pre_urls?.[api_server_id];
+            if (_.isUndefined(script_pre_env_url)) {
+              return scope.env_pre_url;
+            }
+            return script_pre_env_url
           },
         });
 
@@ -1330,11 +1342,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
         env_id: option.env_id ? option.env_id : -1,
         env_name: option.env_name,
         env_pre_url: option.env_pre_url,
+        env_pre_urls: option?.env_pre_urls,
       };
     } else {
       option.env_id = option.env.env_id;
       option.env_name = option.env.env_name;
       option.env_pre_url = option.env.env_pre_url;
+      option.env_pre_urls = option.env?.env_pre_urls;
     }
 
     const report = {
@@ -1344,6 +1358,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
       env_id: option.env.env_id,
       env_name: option.env.env_name,
       env_pre_url: option.env.env_pre_url,
+      env_pre_urls: option.env?.env_pre_urls,
       user: option.user,
       total_count: totalCount,
       total_effective_count: totalEffectiveCount,
@@ -1448,7 +1463,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
       requester: {}, // 发送模块的 options
     }, option);
 
-    let { RUNNER_REPORT_ID, scene, project, cookies, collection, iterationData, combined_id, test_events, default_report_name, user, env, env_name, env_pre_url, environment, globals, iterationCount, ignoreError, ignore_error, enable_sandbox, sleep, requester } = option;
+    let { RUNNER_REPORT_ID, scene, project, cookies, collection, iterationData, combined_id, test_events, default_report_name, user, env, env_name, env_pre_url, env_pre_urls, environment, globals, iterationCount, ignoreError, ignore_error, enable_sandbox, sleep, requester } = option;
 
     if (typeof ignoreError === 'undefined') {
       ignoreError = ignore_error ? !!ignore_error : 0;
@@ -1458,14 +1473,17 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
     ignore_error = ignoreError ? 1 : 0;
     enable_sandbox = typeof enable_sandbox === 'undefined' ? -1 : enable_sandbox; // fix bug
 
+
     if (typeof env === 'undefined') {
       env = {
         env_name,
         env_pre_url,
+        env_pre_urls
       };
     } else {
       env_name = env.env_name;
       env_pre_url = env.env_pre_url;
+      env_pre_urls = env.env_pre_urls;
     }
 
     if (initFlag == 0) { // 初始化参数
@@ -1572,6 +1590,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
       _global_asserts_script = _global_asserts.data.content;
     }
 
+
     if (_.isArray(definitions) && definitions.length > 0) {
       for (let i = 0; i < definitions.length; i++) {
         const definition = definitions[i];
@@ -1584,6 +1603,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
           ...{ iterationCount },
           ...{ env_name },
           ...{ env_pre_url },
+          ...{ env_pre_urls },
+          ...{ collection },
           ...{ environment },
           ...{ globals },
         });
@@ -1628,12 +1649,18 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
             case 'api':
               if (_.has(definition, 'request') && _.isObject(definition.request)) {
                 // 多环境
+                const api_server_id = getCollectionServerId(definition.request.target_id, collection);
+
                 let temp_env = definition?.temp_env || {};
                 if (_.isObject(definition.temp_env) && _.isString(temp_env?.pre_url)) {
+
                   env_pre_url = _.trim(temp_env.pre_url);
                 } else {
-                  // 还原前置url
-                  env_pre_url = env.env_pre_url;
+                  // 还原前置url 优先从env_pre_urls中取，取不到则从原env_pre_url中取
+                  env_pre_url = env?.env_pre_urls?.[api_server_id];
+                  if (_.isUndefined(env_pre_url)) {
+                    env_pre_url = env.env_pre_url;
+                  }
                 }
                 let res = {};
                 // 拼接全局参数、目录参数、以及脚本
