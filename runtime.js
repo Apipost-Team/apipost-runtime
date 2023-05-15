@@ -658,7 +658,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
               return scope.env_pre_url;
             }
             return script_pre_env_url
-           
+
           },
         });
 
@@ -2181,6 +2181,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                     });
                   }
                 }
+
+                // 修改请求url
+                const requestUrl = request.setQueryString(_request.request.url, request.formatQueries(_request.request.query.parameter)).uri
+                _.set(_request, 'url', requestUrl);
+                _.set(_request, 'request.url', requestUrl);
 
 
                 try {
