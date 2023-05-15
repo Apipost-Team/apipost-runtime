@@ -31,7 +31,7 @@ const apipostRequest = require('apipost-send'),
   urlJoin = require('url-join'), // + new add 必须 4.0.1版本
   fs = require('fs'),// for 7.0.13
   path = require('path'),// for 7.0.13
-  mysql = require('mysql2'), // for 7.0.13
+  //mysql = require('mysql2'), // for 7.0.13
   mssql = require('mssql'), // for 7.0.13
   json2csv = require('json-2-csv'),// for 7.0.13
   csv2json = require('testdata-to-apipost-json'),// for 7.0.13
@@ -1000,7 +1000,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
             sm3, // fix bug for 7.0.8
             sm4, // fix bug for 7.0.8
             csv2array: csv2json,
-            mysql, mssql, ClickHouse, pgClient,
+            //mysql,
+             mssql, ClickHouse, pgClient,
             fs: enableUnSafeShell ? fs : {},
             path, json2csv, // for 7.0.13
             xml2json(xml) {
@@ -2182,12 +2183,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   }
                 }
 
-                // 修改请求url
-                const requestUrl = request.setQueryString(_request.request.url, request.formatQueries(_request.request.query.parameter)).uri
-                _.set(_request, 'url', requestUrl);
-                _.set(_request, 'request.url', requestUrl);
-
-
                 try {
                   // console.log(_request)
                   // 合并请求参数
@@ -2237,6 +2232,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 });
 
                 // 发送console
+                
+
+                // 修改请求url
+                const requestUrl = request.setQueryString(_request.request.url, request.formatQueries(_request.request.query.parameter)).uri
 
                 if (scene != 'auto_test') { // / done
                   if (res.status === 'error') {
@@ -2268,7 +2267,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             name: (_.has(definition, 'request.name') ? definition.request.name : undefined),
                             description: (_.has(definition, 'request.request.description') ? definition.request.request.description : undefined),
                             method: _request.method,
-                            url: request.setQueryString(_request.request.url, request.formatQueries(_request.request.query.parameter)).uri,
+                            url: requestUrl,
                             request_bodys: _.indexOf(['form-data', 'urlencoded'], _request.request.body.mode) ? _.mapValues(_formPara, o => _.size(o) > 1 ? o : o[0]) : _formPara,
                             request_headers: {
                               ...request.formatRequestHeaders(_request.request.header.parameter),
@@ -2289,6 +2288,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                       datetime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
                     });
                   } else {
+                    
+                    _.set(_response,'data.request.url',requestUrl);
                     emitRuntimeEvent({
                       action: 'console',
                       method: 'request',
