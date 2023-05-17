@@ -1,6 +1,6 @@
 {
   "name": "apipost-runtime",
-  "version": "1.1.93",
+  "version": "1.1.94",
   "description": "apipost-runtime 支持单接口http请求、自动化测试",
   "main": "./dist/index.js",
   "files": [
@@ -28,7 +28,7 @@
     "ajax-for-node": "^1.0.9",
     "apipost-inside-tools": "^0.1.10",
     "apipost-mock": "^1.0.2",
-    "apipost-send": "^0.0.40",
+    "apipost-send": "^0.0.44",
     "apipost-tools": "^0.0.20",
     "art-template": "^4.13.2",
     "async": "^3.2.4",
