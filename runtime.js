@@ -31,7 +31,7 @@ const apipostRequest = require('apipost-send'),
   urlJoin = require('url-join'), // + new add 必须 4.0.1版本
   fs = require('fs'),// for 7.0.13
   path = require('path'),// for 7.0.13
-  //mysql = require('mysql2'), // for 7.0.13
+  mysql = require('mysql2'), // for 7.0.13
   mssql = require('mssql'), // for 7.0.13
   json2csv = require('json-2-csv'),// for 7.0.13
   csv2json = require('testdata-to-apipost-json'),// for 7.0.13
@@ -1000,7 +1000,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
             sm3, // fix bug for 7.0.8
             sm4, // fix bug for 7.0.8
             csv2array: csv2json,
-            //mysql,
+            mysql,
              mssql, ClickHouse, pgClient,
             fs: enableUnSafeShell ? fs : {},
             path, json2csv, // for 7.0.13
