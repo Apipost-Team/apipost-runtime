@@ -76,10 +76,10 @@ const Collection = function ApipostCollection(definition, option = { iterationCo
                     test_id: item.test_id ? item.test_id : uuid.v4(),
                     type: item.type,
                     temp_env: _.isObject(item.temp_env) ? item.temp_env : {}, // for 多环境
-                    target_id: ['request', 'api'].indexOf(item.type) > -1 ? item.data.target_id : '',
-                    condition: ['request', 'api'].indexOf(item.type) > -1 ? {} : item.data,
-                    request: ['request', 'api'].indexOf(item.type) > -1 ? item.data : {},
-                    info: ['request', 'api'].indexOf(item.type) > -1 ? {
+                    target_id: ['request', 'api', 'sample'].indexOf(item.type) > -1 ? item.data.target_id : '',
+                    condition: ['request', 'api', 'sample'].indexOf(item.type) > -1 ? {} : item.data,
+                    request: ['request', 'api', 'sample'].indexOf(item.type) > -1 ? item.data : {},
+                    info: ['request', 'api', 'sample'].indexOf(item.type) > -1 ? {
                         // requestUrl: item.data.url ? item.data.url : item.data.request.url,
                         // requestName: item.data.name ? item.data.name : (item.data.url ? item.data.url : item.data.request.url),
                         requestId: item.data.target_id,
@@ -495,7 +495,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                     if (item) {
                         switch (data.action) {
                             case 'SCRIPT_ERROR':
-                                if (item.type == 'api') {
+                                if (item.type == 'api' || item.type == 'sample') {
                                     _.set(item, `script_error.${data.eventName}`, data.data);
                                 }
                                 break;
@@ -1307,7 +1307,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                     definitionList.push({
                         event_id: item.event_id,
                         parent_event_id: item.parent_id,
-                        data: item.type == 'api' ? item.request : item.condition,
+                        data: (item.type == 'api' || item.type == 'sample') ? item.request : item.condition,
                         enabled: item.enabled,
                         project_id: item.project_id,
                         sort: item.sort,
@@ -1647,6 +1647,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             }
                             break;
                         case 'request':
+                        case 'sample':
                         case 'api':
                             if (_.has(definition, 'request') && _.isObject(definition.request)) {
                                 // 多环境
@@ -2451,7 +2452,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             break;
                     }
 
-                    if (definition.type != 'api' && definition.event_id != '0' && scene == 'auto_test') {
+                    if (definition.type != 'api' && definition.type != 'sample' && definition.event_id != '0' && scene == 'auto_test') {
                         emitRuntimeEvent({
                             action: 'current_event_id',
                             combined_id,
@@ -2490,7 +2491,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                 // fix bug for 7.0.8
                                 if (_.isArray(initDefinitions)) {
                                     initDefinitions.forEach((item) => {
-                                        if (item.type == 'api' && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
+                                        if ((item.type == 'api' || item.type == 'sample') && !_.find(RUNNER_RESULT_LOG, _.matchesProperty('event_id', item.event_id))) {
                                             const _iteration_id = uuid.v4();
 
                                             if (_.isObject(RUNNER_RESULT_LOG)) {
