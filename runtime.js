@@ -39,6 +39,7 @@ const apipostRequest = require('apipost-send'),
     { pgClient } = require('pg'), // for 7.0.13
     child_process = require('child_process'),// for 7.0.13
     atomicSleep = require('atomic-sleep'), // ++ new add on for // fix 自动化测试有等待时的卡顿问题 for 7.0.13
+    urlNode = require('url'), //for ++ new add at 2023/0604
     artTemplate = require('art-template');
 const { getCollectionServerId } = require('./libs/utils')
 
@@ -873,6 +874,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 value: function (file, args, extra) {
                     if (_.isString(file)) {
                         try {
+                            try {
+                                fs.accessSync(file);
+                            } catch (e) {
+                                file = path.join(path.resolve(ASideTools.getCachePath()), `apipost`, 'ExternalPrograms', file);
+                            }
+
                             let command = ``;
                             switch (_.toLower(file.substr(file.lastIndexOf(".")))) {
                                 case '.go':
@@ -888,12 +895,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                     command = `node `
                                     break;
                                 case '.jar':
-                                    if (_.isObject(extra)) {
+                                    if (_.isObject(extra) && _.isObject(process) && _.isString(_.get(process, 'resourcesPath'))) {
                                         let className = _.get(extra, 'className')
                                         let method = _.get(extra, 'method')
 
                                         if (_.isString(className) && _.isString(method)) {
-                                            command = `java -cp ${file} ${className} ${method} ${_.join(args, ' ')}`;
+                                            let jarPath = path.join(path.resolve(process.resourcesPath), `app`, `jar-main-1.0-SNAPSHOT.jar`);
+                                            let para = new Buffer(JSON.stringify({ "methodName": method, "args": args })).toString('base64');
+                                            command = `java -jar ${jarPath}  ${file} ${className} '${para}'`
                                         }
                                     } else {
                                         command = `java -jar `
@@ -914,16 +923,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             }
 
                             if (command != '') {
-                                if (_.toLower(file.substr(file.lastIndexOf("."))) == '.jar' && _.isObject(extra)) {
-                                    // console.log(1,`${command}`)
+                                if (_.toLower(file.substr(file.lastIndexOf("."))) == '.jar' && _.isObject(extra) && _.isObject(process) && _.isString(_.get(process, 'resourcesPath'))) {
                                     return String(child_process.execSync(`${command}`))
                                 } else {
-                                    // console.log(2,`${command} ${file} ${_.join(args, ' ')}`)
                                     return String(child_process.execSync(`${command} ${file} ${_.join(args, ' ')}`))
                                 }
                             }
                         }
-                        catch (e) { }
+                        catch (e) { return String(e.stderr) }
                     }
                 },
             });
@@ -1010,12 +1017,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                         uuidv4() {
                             return uuid.v4();
                         },
+                        URL: urlNode,
                         ...{ uuid },
                         ...{ aTools },
                         ...{ validCookie },
                         ...{ urlJoin },
                         urljoins, // fix bug for 7.0.8
                         apt: pm,
+                        fox: pm,
                         $,
                         // Promise,
                         request: pm.request ? _.cloneDeep(pm.request) : {},
