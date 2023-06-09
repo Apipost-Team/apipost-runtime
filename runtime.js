@@ -45,10 +45,24 @@ const { getCollectionServerId } = require('./libs/utils')
 
 // cli console
 const cliConsole = function (args) {
-    if (typeof window === 'undefined') {
+    if (isCliMode()) {
         console.log(args);
     }
 };
+
+// is apipost-cli mode
+const isCliMode = function () {
+    try {
+        if (process.stdin.isTTY) {
+            const commandName = process.argv[2];
+            if (commandName == 'run' && typeof args == 'string') {
+                return true;
+            }
+        }
+
+        return false;
+    } catch (e) { return false; }
+}
 
 const Collection = function ApipostCollection(definition, option = { iterationCount: 1, sleep: 0 }) {
     const { iterationCount, sleep } = option;
@@ -476,10 +490,15 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                     });
                     // console.log(item, item.assert)
                     if (status === 'success') {
-                        cliConsole('\t✓'.green + ` ${expect} 匹配`.grey);
+                        if (isCliMode()) {
+                            cliConsole('\t✓' + ` ${expect} 匹配`);
+                        }
                     } else {
                         RUNNER_ERROR_COUNT++;
-                        cliConsole(`\t${RUNNER_ERROR_COUNT}. ${expect} ${result}`.bold.red);
+
+                        if (isCliMode()) {
+                            cliConsole(`\t${RUNNER_ERROR_COUNT}. ${expect} ${result}`);
+                        }
                     }
                 }
             }
@@ -2245,15 +2264,15 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                     _isHttpError = 1;
                                     RUNNER_ERROR_COUNT++;
 
-                                    if (scene == 'auto_test') {
-                                        cliConsole(`\n${_request.method} ${_request.url}`.grey);
-                                        cliConsole(`\t${RUNNER_ERROR_COUNT}. HTTP 请求失败`.bold.red); // underline.
+                                    if (scene == 'auto_test' && isCliMode()) {
+                                        cliConsole(`\n${_request.method} ${_request.url}`);
+                                        cliConsole(`\t${RUNNER_ERROR_COUNT}. HTTP 请求失败`); // underline.
                                     }
                                 } else {
                                     _isHttpError = -1;
-                                    if (scene == 'auto_test') {
-                                        cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}KB, ${res.data.response.responseTime}ms]`.grey);
-                                        cliConsole('\t✓'.green + ' HTTP 请求成功'.grey);
+                                    if (scene == 'auto_test' && isCliMode()) {
+                                        cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}KB, ${res.data.response.responseTime}ms]`);
+                                        cliConsole('\t✓' + ' HTTP 请求成功');
                                     }
                                 }
 
@@ -2532,6 +2551,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
                             const _runReport = calculateRuntimeReport(RUNNER_RESULT_LOG, initDefinitions, RUNNER_REPORT_ID, { combined_id, test_events, default_report_name, user, env_name, env });
 
+                            if (isCliMode()) {
+                                _.set(_runReport, 'logList', _.values(RUNNER_RESULT_LOG))
+                            }
+
                             emitRuntimeEvent({
                                 action: 'complate',
                                 combined_id,
@@ -2546,67 +2569,68 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             });
 
                             // 打印报告
-                            const reportTable = new Table({
-                                style: { padding: 5, head: [], border: [] },
-                            });
-
-                            // fix bug for 7.1.16
-                            reportTable.push(
-                                [{ content: 'The result of API test'.bold.gray, colSpan: 4, hAlign: 'center' }],
-                                ['', { content: 'passed', hAlign: 'center' }, { content: 'failed', hAlign: 'center' }, { content: 'ignore', hAlign: 'center' }],
-                                [{ content: 'request', hAlign: 'left' }, { content: `${_runReport.http.passed}`, hAlign: 'center' }, { content: `${_runReport.http.failure}`, hAlign: 'center' }, { content: `${_runReport.ignore_count}`, rowSpan: 2, hAlign: 'center', vAlign: 'center' }],
-                                [{ content: 'assertion', hAlign: 'left' }, { content: `${_runReport.assert.passed}`, hAlign: 'center' }, { content: `${_runReport.assert.failure}`, hAlign: 'center' }],
-                                [{ content: `total number of api: ${_runReport.total_count}, ignore: ${_runReport.ignore_count}`, colSpan: 4, hAlign: 'left' }],
-                                [{ content: `total data received: ${_runReport.total_received_data} KB (approx)`, colSpan: 4, hAlign: 'left' }],
-                                [{ content: `total response time: ${_runReport.total_response_time} 毫秒, average response time: ${_runReport.average_response_time} 毫秒`, colSpan: 4, hAlign: 'left' }],
-                                [{ content: `total run duration: ${_runReport.long_time}`, colSpan: 4, hAlign: 'left' }],
-                                [{ content: 'Generated by apipost-cli ( https://github.com/Apipost-Team/apipost-cli )', colSpan: 4, hAlign: 'center' }],
-                            );
-
-                            cliConsole(reportTable.toString());
-
-                            if (_.size(_runReport.assert_errors) > 0) {
-                                let cliCounter = 0;
-                                const failedTable = new Table({
-                                    chars: {
-                                        top: '',
-                                        'top-mid': '',
-                                        'top-left': '',
-                                        'top-right': '',
-                                        bottom: '',
-                                        'bottom-mid': '',
-                                        'bottom-left': '',
-                                        'bottom-right': '',
-                                        left: '',
-                                        'left-mid': '',
-                                        mid: '',
-                                        'mid-mid': '',
-                                        right: '',
-                                        'right-mid': '',
-                                        middle: ' ',
-                                    },
+                            if (isCliMode()) {
+                                const reportTable = new Table({
                                     style: { padding: 5, head: [], border: [] },
                                 });
 
                                 // fix bug for 7.1.16
-                                failedTable.push(
-                                    [{ content: '', colSpan: 2 }],
-                                    [{ content: '#', hAlign: 'center' }, { content: 'failure', hAlign: 'left' }, { content: 'detail', hAlign: 'left' }],
-                                ); // fix bug for 7.0.8 bug
+                                reportTable.push(
+                                    [{ content: 'The result of API test'.bold.gray, colSpan: 4, hAlign: 'center' }],
+                                    ['', { content: 'passed', hAlign: 'center' }, { content: 'failed', hAlign: 'center' }, { content: 'ignore', hAlign: 'center' }],
+                                    [{ content: 'request', hAlign: 'left' }, { content: `${_runReport.http.passed}`, hAlign: 'center' }, { content: `${_runReport.http.failure}`, hAlign: 'center' }, { content: `${_runReport.ignore_count}`, rowSpan: 2, hAlign: 'center', vAlign: 'center' }],
+                                    [{ content: 'assertion', hAlign: 'left' }, { content: `${_runReport.assert.passed}`, hAlign: 'center' }, { content: `${_runReport.assert.failure}`, hAlign: 'center' }],
+                                    [{ content: `total number of api: ${_runReport.total_count}, ignore: ${_runReport.ignore_count}`, colSpan: 4, hAlign: 'left' }],
+                                    [{ content: `total data received: ${_runReport.total_received_data} KB (approx)`, colSpan: 4, hAlign: 'left' }],
+                                    [{ content: `total response time: ${_runReport.total_response_time} 毫秒, average response time: ${_runReport.average_response_time} 毫秒`, colSpan: 4, hAlign: 'left' }],
+                                    [{ content: `total run duration: ${_runReport.long_time}`, colSpan: 4, hAlign: 'left' }],
+                                    [{ content: 'Generated by apipost-cli ( https://github.com/Apipost-Team/apipost-cli )', colSpan: 4, hAlign: 'center' }],
+                                );
 
-                                _.forEach(_runReport.assert_errors, (item) => {
-                                    _.forEach(item.assert, (assert) => {
-                                        cliCounter++;
-                                        failedTable.push(
-                                            [{ content: '', colSpan: 2 }],
-                                            [{ content: `${cliCounter}.`, hAlign: 'center' }, { content: '断言错误', hAlign: 'left' }, { content: `${`${assert.expect}` + '\n'}${`${assert.result}`}`, hAlign: 'left' }],
-                                        );
+                                cliConsole(reportTable.toString());
+
+                                if (_.size(_runReport.assert_errors) > 0) {
+                                    let cliCounter = 0;
+                                    const failedTable = new Table({
+                                        chars: {
+                                            top: '',
+                                            'top-mid': '',
+                                            'top-left': '',
+                                            'top-right': '',
+                                            bottom: '',
+                                            'bottom-mid': '',
+                                            'bottom-left': '',
+                                            'bottom-right': '',
+                                            left: '',
+                                            'left-mid': '',
+                                            mid: '',
+                                            'mid-mid': '',
+                                            right: '',
+                                            'right-mid': '',
+                                            middle: ' ',
+                                        },
+                                        style: { padding: 5, head: [], border: [] },
                                     });
-                                });
 
-                                cliConsole(failedTable.toString());
+                                    // fix bug for 7.1.16
+                                    failedTable.push(
+                                        [{ content: '', colSpan: 2 }],
+                                        [{ content: '#', hAlign: 'center' }, { content: 'failure', hAlign: 'left' }, { content: 'detail', hAlign: 'left' }],
+                                    ); // fix bug for 7.0.8 bug
+
+                                    _.forEach(_runReport.assert_errors, (item) => {
+                                        _.forEach(item.assert, (assert) => {
+                                            cliCounter++;
+                                            failedTable.push(
+                                                [{ content: '', colSpan: 2 }],
+                                                [{ content: `${cliCounter}.`, hAlign: 'center' }, { content: '断言错误', hAlign: 'left' }, { content: `${`${assert.expect}` + '\n'}${`${assert.result}`}`, hAlign: 'left' }],
+                                            );
+                                        });
+                                    });
+
+                                    cliConsole(failedTable.toString());
+                                }
                             }
-
                             ignoreEvents = null;
                         } else { // 接口请求
                             const _http = _.isObject(RUNNER_RESULT_LOG) ? RUNNER_RESULT_LOG[definition.iteration_id] : {};
