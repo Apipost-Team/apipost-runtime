@@ -51,17 +51,21 @@ const cliConsole = function (args) {
 };
 
 // is apipost-cli mode
-const isCliMode = function () {
-    try {
-        if (process.stdin.isTTY) {
-            const commandName = process.argv[2];
-            if (commandName == 'run' && typeof args == 'string') {
-                return true;
+const isCliMode = function (iscli) {
+    if (typeof iscli === 'boolean') {
+        return iscli
+    } else {
+        try {
+            if (process.stdin.isTTY) {
+                const commandName = process.argv[2];
+                if (commandName == 'run' && typeof args == 'string') {
+                    return true;
+                }
             }
-        }
 
-        return false;
-    } catch (e) { return false; }
+            return false;
+        } catch (e) { return false; }
+    }
 }
 
 const Collection = function ApipostCollection(definition, option = { iterationCount: 1, sleep: 0 }) {
@@ -561,7 +565,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
              *
              * callback 回调
          * */
-        async function execute(code, scope, eventName, callback) {
+        async function execute(code, scope, eventName, callback, option) {
+            console.log(scope, 'scope')
             scope = _.isPlainObject(scope) ? _.cloneDeep(scope) : {};
 
             // 初始化数据库中的当前变量值 init
@@ -896,7 +901,17 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             try {
                                 fs.accessSync(file);
                             } catch (e) {
-                                file = path.join(path.resolve(ASideTools.getCachePath()), `apipost`, 'ExternalPrograms', file);
+                                let externalPrograms = _.get(option, 'requester.externalPrograms');
+                                if (_.isString(externalPrograms) && externalPrograms != '') {
+                                    try {
+                                        file = path.join(path.resolve(externalPrograms), file);
+                                        fs.accessSync(file);
+                                    } catch (e) {
+                                        file = path.join(path.resolve(ASideTools.getCachePath()), `apipost`, 'ExternalPrograms', file);
+                                    }
+                                } else {
+                                    file = path.join(path.resolve(ASideTools.getCachePath()), `apipost`, 'ExternalPrograms', file);
+                                }
                             }
 
                             let command = ``;
@@ -997,9 +1012,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 code = `(async function () {
           ${code}
         })()`;
+                let scriptTimeout = _.toNumber(_.get(option, 'requester.timeoutScript'));
+
+                if (scriptTimeout <= 0) {
+                    scriptTimeout = 5000;
+                }
 
                 await (new vm2.VM({
-                    timeout: 5000,
+                    timeout: scriptTimeout,
                     sandbox: _.assign({
                         ...{ nodeAjax },
                         ...{ pm },
@@ -1664,7 +1684,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                     if (err && ignoreError < 1) {
                                         stop(RUNNER_REPORT_ID, String(err));
                                     }
-                                });
+                                }, option);
                             }
                             break;
                         case 'if':
@@ -1965,7 +1985,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                         if (err && ignoreError < 1) {
                                             stop(RUNNER_REPORT_ID, String(err));
                                         }
-                                    });
+                                    }, option);
                                 }
 
                                 let _request = _.cloneDeep(definition.request);
@@ -2402,7 +2422,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                         } else if (_.has(exec_res, 'raw.responseText') && _.has(res, 'data.response.raw.responseText') && exec_res.raw.responseText != res.data.response.raw.responseText) {
                                             _.set(_response, 'data.response.changeBody', exec_res.raw.responseText);
                                         }
-                                    });
+                                    }, option);
                                 }
 
                                 // fit support response && request
@@ -2576,7 +2596,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
                                 // fix bug for 7.1.16
                                 reportTable.push(
-                                    [{ content: 'The result of API test'.bold.gray, colSpan: 4, hAlign: 'center' }],
+                                    [{ content: 'The result of API test', colSpan: 4, hAlign: 'center' }],
                                     ['', { content: 'passed', hAlign: 'center' }, { content: 'failed', hAlign: 'center' }, { content: 'ignore', hAlign: 'center' }],
                                     [{ content: 'request', hAlign: 'left' }, { content: `${_runReport.http.passed}`, hAlign: 'center' }, { content: `${_runReport.http.failure}`, hAlign: 'center' }, { content: `${_runReport.ignore_count}`, rowSpan: 2, hAlign: 'center', vAlign: 'center' }],
                                     [{ content: 'assertion', hAlign: 'left' }, { content: `${_runReport.assert.passed}`, hAlign: 'center' }, { content: `${_runReport.assert.failure}`, hAlign: 'center' }],
@@ -2589,8 +2609,48 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
                                 cliConsole(reportTable.toString());
 
+                                let cliCounter = 0;
+
+                                if (_.size(_runReport.http_errors) > 0) {
+                                    const httpFailedTable = new Table({
+                                        chars: {
+                                            top: '',
+                                            'top-mid': '',
+                                            'top-left': '',
+                                            'top-right': '',
+                                            bottom: '',
+                                            'bottom-mid': '',
+                                            'bottom-left': '',
+                                            'bottom-right': '',
+                                            left: '',
+                                            'left-mid': '',
+                                            mid: '',
+                                            'mid-mid': '',
+                                            right: '',
+                                            'right-mid': '',
+                                            middle: ' ',
+                                        },
+                                        style: { padding: 5, head: [], border: [] },
+                                    });
+
+                                    // fix bug for 7.1.16
+                                    httpFailedTable.push(
+                                        [{ content: '', colSpan: 2 }],
+                                        [{ content: '#', hAlign: 'center' }, { content: 'failure', hAlign: 'left' }, { content: 'detail', hAlign: 'left' }],
+                                    ); // fix bug for 7.0.8 bug
+
+                                    _.forEach(_runReport.http_errors, (item) => {
+                                        cliCounter++;
+                                        httpFailedTable.push(
+                                            [{ content: '', colSpan: 2 }],
+                                            [{ content: `${cliCounter}.`, hAlign: 'center' }, { content: '请求错误', hAlign: 'left' }, { content: `${`${_.get(item, 'response.status')}` + '\t' + `${_.get(item, 'request.url')}` + '\n'}${`${_.get(item, 'response.message')}`}`, hAlign: 'left' }],
+                                        );
+                                    });
+
+                                    cliConsole(httpFailedTable.toString());
+                                }
+
                                 if (_.size(_runReport.assert_errors) > 0) {
-                                    let cliCounter = 0;
                                     const failedTable = new Table({
                                         chars: {
                                             top: '',
