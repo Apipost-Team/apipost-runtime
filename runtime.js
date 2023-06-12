@@ -45,7 +45,7 @@ const { getCollectionServerId } = require('./libs/utils')
 
 // cli console
 const cliConsole = function (args) {
-    if (isCliMode()) {
+    if (isCliMode() && typeof args == 'string') {
         console.log(args);
     }
 };
@@ -58,7 +58,7 @@ const isCliMode = function (iscli) {
         try {
             if (process.stdin.isTTY) {
                 const commandName = process.argv[2];
-                if (commandName == 'run' && typeof args == 'string') {
+                if (commandName == 'run') {
                     return true;
                 }
             }
@@ -566,7 +566,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
              * callback 回调
          * */
         async function execute(code, scope, eventName, callback, option) {
-            console.log(scope, 'scope')
             scope = _.isPlainObject(scope) ? _.cloneDeep(scope) : {};
 
             // 初始化数据库中的当前变量值 init
