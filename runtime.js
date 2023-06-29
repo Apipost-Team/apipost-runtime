@@ -959,7 +959,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                 if (_.toLower(file.substr(file.lastIndexOf("."))) == '.jar' && _.isObject(extra) && _.isObject(process) && _.isString(_.get(process, 'resourcesPath'))) {
                                     return String(child_process.execSync(`${command}`))
                                 } else {
-                                    return String(child_process.execSync(`${command} ${file} ${_.join(args, ' ')}`))
+                                    // fix bug for 7.1.7
+                                    return String(child_process.execSync(`${command} ${file} ${_.join(_.map(args, JSON.stringify), ' ')}`))
                                 }
                             }
                         }
@@ -2215,10 +2216,16 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                             if (typeof _cookie.name === 'undefined' && typeof _cookie.key === 'string') {
                                                 _cookie.name = _cookie.key;
                                             }
-                                            const cookieStr = validCookie.isvalid(_url, _cookie);
 
-                                            if (cookieStr) {
-                                                _cookieArr.push(cookieStr.cookie);
+                                            // 兼容cookie返回异常时的报错问题 for 7.1.7
+                                            if (_.isString(_cookie.name) && _cookie.name != '') {
+                                                try {
+                                                    const cookieStr = validCookie.isvalid(_url, _cookie);
+
+                                                    if (cookieStr) {
+                                                        _cookieArr.push(cookieStr.cookie);
+                                                    }
+                                                } catch (e) { }
                                             }
                                         });
 
