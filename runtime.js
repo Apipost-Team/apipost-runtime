@@ -1771,7 +1771,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                             definition.request.request[_type].parameter.forEach((item) => {
                                                 if (item.is_checked > 0 && _.trim(item.key) != '') {
                                                     if (_type == 'header') {
-                                                        _requestPara[_type][_.trim(item.key)] = item;
+                                                        if (_.isUndefined(_requestPara[_type][_.trim(item.key)])) {
+                                                            _requestPara[_type][_.trim(item.key)] = item;
+                                                        } else {
+                                                            if (_.isObject(item) && !_.isUndefined(item.field_type)) {
+                                                                _requestPara[_type][_.trim(item.key)] = item;
+                                                            }
+                                                        }
                                                     } else {
                                                         _requestPara[_type].push(item);
                                                     }
