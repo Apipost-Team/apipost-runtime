@@ -40,9 +40,8 @@ const apipostRequest = require('apipost-send'),
   child_process = require('child_process'),// for 7.0.13
   atomicSleep = require('atomic-sleep'), // ++ new add on for // fix 自动化测试有等待时的卡顿问题 for 7.0.13
   urlNode = require('url'), //for ++ new add at 2023/0604
-  artTemplate = require('art-template');
-
-cheerio = require('cheerio'),// add for 7.2.0
+  artTemplate = require('art-template'),
+  cheerio = require('cheerio'),// add for 7.2.0
   tv4 = require('tv4'),// add for 7.2.0
   Ajv = require('ajv'),// add for 7.2.0
   xml2js = require('xml2js'),// add for 7.2.0
