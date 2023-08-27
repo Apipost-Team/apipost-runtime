@@ -78,7 +78,7 @@
     "apipost-inside-tools": ">=0.1.10",
     "apipost-tools": ">=0.0.20",
     "art-template": ">=4.13.2",
-    "chai-apipost": ">=0.0.3",
+    "chai-apipost": ">=0.0.4",
     "dayjs": ">=1.11.4",
     "jquery": ">=3.6.0",
     "lodash": ">=4.17.21",
