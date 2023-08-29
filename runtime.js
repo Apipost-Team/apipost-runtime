@@ -1303,12 +1303,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
                                 Object.defineProperty(pm, key, {
                                     configurable: true,
-                                    value: {
+                                    value: _.assign(scope.script_request, {
                                         headers: _pm_headers,
-                                        method: scope.script_request?.method,
-                                        url: scope.script_request?.url,
                                         body: _pm_body
-                                    }
+                                    })
                                 });
                             }
                             break;
