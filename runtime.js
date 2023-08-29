@@ -2001,7 +2001,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                         btoa: btoa,// for 7.2.0 
                         require: require,// for 7.2.0 支持 require
                         $,
-                        request: pm.request ? _.cloneDeep(pm.request) : {},
+                        request: pm.request ? _.assign(_.cloneDeep(pm.request), { headers: pm.request?.request_headers }) : {},
                         response: pm.response ? _.assign(_.cloneDeep(pm.response), { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
                         expect: chai.expect,
                         sleep: atomicSleep,
