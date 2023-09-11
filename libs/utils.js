@@ -486,7 +486,7 @@ const arrayPrototypeExtend = function (obj) {
                 return _.join(_.map(obj, item => `${item.key}:${item.value}`), '\n')
             },
         });
-    } else if (_.isObject(obj)) {
+    } else if (_.isObject(obj) && !_.isFunction(obj)) {
         Object.defineProperty(obj, 'toJSON', { // 1
             configurable: true,
             value() {
@@ -503,7 +503,7 @@ const arrayPrototypeExtend = function (obj) {
         });
     }
 
-    if (_.isObject(obj)) {
+    if (_.isObject(obj) && !_.isFunction(obj)) {
         // 递归处理
         _.forEach(obj, (items) => {
             arrayPrototypeExtend(items);
