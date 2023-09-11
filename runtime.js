@@ -1,2404 +1,48 @@
 const apipostRequest = require('apipost-send'),
-  sm2 = require('sm-crypto').sm2, // add module for 7.0.8
-  sm3 = require('sm-crypto').sm3, // add module for 7.0.8
-  sm4 = require('sm-crypto').sm4, // add module for 7.0.8
-  urljoins = require("urljoins").urljoins,// add module for 7.0.8 https://www.npmjs.com/package/urljoins
-  asyncModule = require('async'), // add module 0920
-  FormData = require('form-data'), // add module 0914
+  urljoins = require("urljoins").urljoins, // https://www.npmjs.com/package/urljoins
   Table = require('cli-table3'),
-  Cookie = require('cookie'),
   zlib = require('zlib'),
   Buffer = require('buffer/').Buffer,
+  urlNode = require('url'),
   _ = require('lodash'),
-  chai = require('chai'),
   JSON5 = require('json5'),
   uuid = require('uuid'),
-  Mock = require('apipost-mock'),
-  CryptoJS = require('crypto-js'),
   jsonpath = require('jsonpath'),
-  x2js = require('x2js'),
-  $ = require('jquery'),
-  nodeAjax = require('ajax-for-node'), // new module on 0829
-  JSEncryptNode = require('jsencrypt-node'), // fix bug
-  moment = require('moment'),
   dayjs = require('dayjs'),
-  vm2 = require('vm2'),
-  ASideTools = require('apipost-inside-tools'),
   stripJsonComments = require('strip-json-comments'),
   JSONbig = require('json-bigint'),
   aTools = require('apipost-tools'),
   validCookie = require('check-valid-cookie'),
-  urlJoin = require('url-join'), // + new add 必须 4.0.1版本
-  fs = require('fs'),// for 7.0.13
-  path = require('path'),// for 7.0.13
-  mysql = require('mysql2'), // for 7.0.13
-  mssql = require('mssql'), // for 7.0.13
-  json2csv = require('json-2-csv'),// for 7.0.13
-  csv2json = require('testdata-to-apipost-json'),// for 7.0.13
-  { ClickHouse } = require('clickhouse'), // for 7.0.13
-  { pgClient } = require('pg'), // for 7.0.13
-  child_process = require('child_process'),// for 7.0.13
-  atomicSleep = require('atomic-sleep'), // ++ new add on for // fix 自动化测试有等待时的卡顿问题 for 7.0.13
-  urlNode = require('url'), //for ++ new add at 2023/0604
-  artTemplate = require('art-template'),
-  cheerio = require('cheerio'),// add for 7.2.0
-  tv4 = require('tv4'),// add for 7.2.0
-  Ajv = require('ajv'),// add for 7.2.0
-  xml2js = require('xml2js'),// add for 7.2.0
-  atob = require('atob'),// add for 7.2.0
-  btoa = require('btoa'),// add for 7.2.0
-
-  // add for 7.2.0
-  { faker } = require('@faker-js/faker/locale/zh_CN'), //zh_CN/en
-
-  // add for 7.2.0
-  LOCALES = ['af', 'am', 'an', 'ar', 'ast', 'az', 'be', 'bg', 'bh', 'bn', 'br', 'bs', 'ca', 'ceb', 'ckb', 'co', 'cs',
-    'cy', 'da', 'de', 'el', 'en', 'eo', 'es', 'et', 'eu', 'fa', 'fi', 'fil', 'fo', 'fr', 'fy', 'ga', 'gd', 'gl',
-    'gn', 'gu', 'ha', 'haw', 'he', 'hi', 'hmn', 'hr', 'ht', 'hu', 'hy', 'ia', 'id', 'ig', 'is', 'it', 'ja', 'jv',
-    'ka', 'kk', 'km', 'kn', 'ko', 'ku', 'ky', 'la', 'lb', 'ln', 'lo', 'lt', 'lv', 'mg', 'mi', 'mk', 'ml', 'mn',
-    'mo', 'mr', 'ms', 'mt', 'my', 'nb', 'ne', 'nl', 'nn', 'no', 'ny', 'oc', 'om', 'or', 'pa', 'pl', 'ps', 'pt',
-    'qu', 'rm', 'ro', 'ru', 'sd', 'sh', 'si', 'sk', 'sl', 'sm', 'sn', 'so', 'sq', 'sr', 'st', 'su', 'sv', 'sw',
-    'ta', 'te', 'tg', 'th', 'ti', 'tk', 'to', 'tr', 'tt', 'tw', 'ug', 'uk', 'ur', 'uz', 'vi', 'wa', 'xh', 'yi',
-    'yo', 'zh', 'zu'],
-
-  // add for 7.2.0
-  // paths for directories
-  DIRECTORY_PATHS = [
-    '/Applications',
-    '/bin',
-    '/boot',
-    '/boot/defaults',
-    '/dev',
-    '/etc',
-    '/etc/defaults',
-    '/etc/mail',
-    '/etc/namedb',
-    '/etc/periodic',
-    '/etc/ppp',
-    '/home',
-    '/home/user',
-    '/home/user/dir',
-    '/lib',
-    '/Library',
-    '/lost+found',
-    '/media',
-    '/mnt',
-    '/net',
-    '/Network',
-    '/opt',
-    '/opt/bin',
-    '/opt/include',
-    '/opt/lib',
-    '/opt/sbin',
-    '/opt/share',
-    '/private',
-    '/private/tmp',
-    '/private/var',
-    '/proc',
-    '/rescue',
-    '/root',
-    '/sbin',
-    '/selinux',
-    '/srv',
-    '/sys',
-    '/System',
-    '/tmp',
-    '/Users',
-    '/usr',
-    '/usr/X11R6',
-    '/usr/bin',
-    '/usr/include',
-    '/usr/lib',
-    '/usr/libdata',
-    '/usr/libexec',
-    '/usr/local/bin',
-    '/usr/local/src',
-    '/usr/obj',
-    '/usr/ports',
-    '/usr/sbin',
-    '/usr/share',
-    '/usr/src',
-    '/var',
-    '/var/log',
-    '/var/mail',
-    '/var/spool',
-    '/var/tmp',
-    '/var/yp'
-  ];
-
-// console.log(faker.random)//arrayElement
-// add for 7.2.0
-const // generators for $random* variables
-  dynamicGenerators = {
-    $guid: {
-      description: 'A v4 style guid',
-      generator: function () {
-        return uuid.v4();
-      }
-    },
-
-    $timestamp: {
-      description: 'The current timestamp',
-      generator: function () {
-        return Math.round(Date.now() / 1000);
-      }
-    },
-
-    $isoTimestamp: {
-      description: 'The current ISO timestamp at zero UTC',
-      generator: function () {
-        return new Date().toISOString();
-      }
-    },
-
-    $randomInt: {
-      description: 'A random integer between 0 and 1000',
-      generator: function () {
-        return ~~(Math.random() * (1000 + 1));
-      }
-    },
-
-    // faker.phone.phoneNumber returns phone number with or without
-    // extension randomly. this only returns a phone number without extension.
-    $randomPhoneNumber: {
-      description: 'A random 10-digit phone number',
-      generator: function () {
-        return faker.phone.phoneNumberFormat(0);
-      }
-    },
-
-    // faker.phone.phoneNumber returns phone number with or without
-    // extension randomly. this only returns a phone number with extension.
-    $randomPhoneNumberExt: {
-      description: 'A random phone number with extension (12 digits)',
-      generator: function () {
-        return faker.datatype.number({ min: 1, max: 99 }) + '-' + faker.phone.phoneNumberFormat(0);
-      }
-    },
-
-    // faker's random.locale only returns 'en'. this returns from a list of
-    // random locales
-    $randomLocale: {
-      description: 'A random two-letter language code (ISO 639-1)',
-      generator: function () {
-        return faker.random.arrayElement(LOCALES);
-      }
-    },
-
-    // fakers' random.words returns random number of words between 1, 3.
-    // this returns number of words between 2, 5.
-    $randomWords: {
-      description: 'Some random words',
-      generator: function () {
-        var words = [],
-          count = faker.datatype.number({ min: 2, max: 5 }),
-          i;
-
-        for (i = 0; i < count; i++) {
-          words.push(faker.random.word());
-        }
-
-        return words.join(' ');
-      }
-    },
-
-    // faker's system.filePath retuns nothing. this returns a path for a file.
-    $randomFilePath: {
-      description: 'A random file path',
-      generator: function () {
-        return dynamicGenerators.$randomDirectoryPath.generator() + '/' + faker.system.fileName();
-      }
-    },
-
-    // faker's system.directoryPath retuns nothing. this returns a path for
-    // a directory.
-    $randomDirectoryPath: {
-      description: 'A random directory path',
-      generator: function () {
-        return faker.random.arrayElement(DIRECTORY_PATHS);
-      }
-    },
-
-    $randomCity: {
-      description: 'A random city name',
-      generator: faker.address.city
-    },
-    $randomStreetName: {
-      description: 'A random street name',
-      generator: faker.address.streetName
-    },
-    $randomStreetAddress: {
-      description: 'A random street address (e.g. 1234 Main Street)',
-      generator: faker.address.streetAddress
-    },
-    $randomCountry: {
-      description: 'A random country',
-      generator: faker.address.country
-    },
-    $randomCountryCode: {
-      description: 'A random 2-letter country code (ISO 3166-1 alpha-2)',
-      generator: faker.address.countryCode
-    },
-    $randomLatitude: {
-      description: 'A random latitude coordinate',
-      generator: faker.address.latitude
-    },
-    $randomLongitude: {
-      description: 'A random longitude coordinate',
-      generator: faker.address.longitude
-    },
-
-    $randomColor: {
-      description: 'A random color',
-      generator: faker.commerce.color
-    },
-    $randomDepartment: {
-      description: 'A random commerce category (e.g. electronics, clothing)',
-      generator: faker.commerce.department
-    },
-    $randomProductName: {
-      description: 'A random product name (e.g. handmade concrete tuna)',
-      generator: faker.commerce.productName
-    },
-    $randomProductAdjective: {
-      description: 'A random product adjective (e.g. tasty, eco-friendly)',
-      generator: faker.commerce.productAdjective
-    },
-    $randomProductMaterial: {
-      description: 'A random product material (e.g. steel, plastic, leather)',
-      generator: faker.commerce.productMaterial
-    },
-    $randomProduct: {
-      description: 'A random product (e.g. shoes, table, chair)',
-      generator: faker.commerce.product
-    },
-
-    $randomCompanyName: {
-      description: 'A random company name',
-      generator: faker.company.companyName
-    },
-    $randomCompanySuffix: {
-      description: 'A random company suffix (e.g. Inc, LLC, Group)',
-      generator: faker.company.companySuffix
-    },
-    $randomCatchPhrase: {
-      description: 'A random catchphrase',
-      generator: faker.company.catchPhrase
-    },
-    $randomBs: {
-      description: 'A random phrase of business speak',
-      generator: faker.company.bs
-    },
-    $randomCatchPhraseAdjective: {
-      description: 'A random catchphrase adjective',
-      generator: faker.company.catchPhraseAdjective
-    },
-    $randomCatchPhraseDescriptor: {
-      description: 'A random catchphrase descriptor',
-      generator: faker.company.catchPhraseDescriptor
-    },
-    $randomCatchPhraseNoun: {
-      description: 'Randomly generates a catchphrase noun',
-      generator: faker.company.catchPhraseNoun
-    },
-    $randomBsAdjective: {
-      description: 'A random business speak adjective',
-      generator: faker.company.bsAdjective
-    },
-    $randomBsBuzz: {
-      description: 'A random business speak buzzword',
-      generator: faker.company.bsBuzz
-    },
-    $randomBsNoun: {
-      description: 'A random business speak noun',
-      generator: faker.company.bsNoun
-    },
-
-    $randomDatabaseColumn: {
-      description: 'A random database column name (e.g. updatedAt, token, group)',
-      generator: faker.database.column
-    },
-    $randomDatabaseType: {
-      description: 'A random database type (e.g. tiny int, double, point)',
-      generator: faker.database.type
-    },
-    $randomDatabaseCollation: {
-      description: 'A random database collation (e.g. cp1250_bin)',
-      generator: faker.database.collation
-    },
-    $randomDatabaseEngine: {
-      description: 'A random database engine (e.g. Memory, Archive, InnoDB)',
-      generator: faker.database.engine
-    },
-
-    $randomDatePast: {
-      description: 'A random past datetime',
-      generator: faker.date.past
-    },
-    $randomDateFuture: {
-      description: 'A random future datetime',
-      generator: faker.date.future
-    },
-    $randomDateRecent: {
-      description: 'A random recent datetime',
-      generator: faker.date.recent
-    },
-    $randomMonth: {
-      description: 'A random month',
-      generator: faker.date.month
-    },
-    $randomWeekday: {
-      description: 'A random weekday',
-      generator: faker.date.weekday
-    },
-
-    $randomBankAccount: {
-      description: 'A random 8-digit bank account number',
-      generator: faker.finance.account
-    },
-    $randomBankAccountName: {
-      description: 'A random bank account name (e.g. savings account, checking account)',
-      generator: faker.finance.accountName
-    },
-    $randomCreditCardMask: {
-      description: 'A random masked credit card number',
-      generator: faker.finance.mask
-    },
-    $randomPrice: {
-      description: 'A random price between 0.00 and 1000.00',
-      generator: faker.finance.amount
-    },
-    $randomTransactionType: {
-      description: 'A random transaction type (e.g. invoice, payment, deposit)',
-      generator: faker.finance.transactionType
-    },
-    $randomCurrencyCode: {
-      description: 'A random 3-letter currency code (ISO-4217)',
-      generator: faker.finance.currencyCode
-    },
-    $randomCurrencyName: {
-      description: 'A random currency name',
-      generator: faker.finance.currencyName
-    },
-    $randomCurrencySymbol: {
-      description: 'A random currency symbol',
-      generator: faker.finance.currencySymbol
-    },
-    $randomBitcoin: {
-      description: 'A random bitcoin address',
-      generator: faker.finance.bitcoinAddress
-    },
-    $randomBankAccountIban: {
-      description: 'A random 15-31 character IBAN (International Bank Account Number)',
-      generator: faker.finance.iban
-    },
-    $randomBankAccountBic: {
-      description: 'A random BIC (Bank Identifier Code)',
-      generator: faker.finance.bic
-    },
-
-    $randomAbbreviation: {
-      description: 'A random abbreviation',
-      generator: faker.hacker.abbreviation
-    },
-    $randomAdjective: {
-      description: 'A random adjective',
-      generator: faker.hacker.adjective
-    },
-    $randomNoun: {
-      description: 'A random noun',
-      generator: faker.hacker.noun
-    },
-    $randomVerb: {
-      description: 'A random verb',
-      generator: faker.hacker.verb
-    },
-    $randomIngverb: {
-      description: 'A random verb ending in “-ing”',
-      generator: faker.hacker.ingverb
-    },
-    $randomPhrase: {
-      description: 'A random phrase',
-      generator: faker.hacker.phrase
-    },
-
-    $randomAvatarImage: {
-      description: 'A random avatar image',
-      generator: faker.image.avatar
-    },
-    $randomImageUrl: {
-      description: 'A URL for a random image',
-      generator: faker.image.imageUrl
-    },
-    $randomAbstractImage: {
-      description: 'A URL for a random abstract image',
-      generator: faker.image.abstract
-    },
-    $randomAnimalsImage: {
-      description: 'A URL for a random animal image',
-      generator: faker.image.animals
-    },
-    $randomBusinessImage: {
-      description: 'A URL for a random stock business image',
-      generator: faker.image.business
-    },
-    $randomCatsImage: {
-      description: 'A URL for a random cat image',
-      generator: faker.image.cats
-    },
-    $randomCityImage: {
-      description: 'A URL for a random city image',
-      generator: faker.image.city
-    },
-    $randomFoodImage: {
-      description: 'A URL for a random food image',
-      generator: faker.image.food
-    },
-    $randomNightlifeImage: {
-      description: 'A URL for a random nightlife image',
-      generator: faker.image.nightlife
-    },
-    $randomFashionImage: {
-      description: 'A URL for a random fashion image',
-      generator: faker.image.fashion
-    },
-    $randomPeopleImage: {
-      description: 'A URL for a random image of a person',
-      generator: faker.image.people
-    },
-    $randomNatureImage: {
-      description: 'A URL for a random nature image',
-      generator: faker.image.nature
-    },
-    $randomSportsImage: {
-      description: 'A URL for a random sports image',
-      generator: faker.image.sports
-    },
-    $randomTransportImage: {
-      description: 'A URL for a random transportation image',
-      generator: faker.image.transport
-    },
-    $randomImageDataUri: {
-      description: 'A random image data URI',
-      generator: faker.image.dataUri
-    },
-
-    $randomEmail: {
-      description: 'A random email address',
-      generator: faker.internet.email
-    },
-    $randomExampleEmail: {
-      description: 'A random email address from an “example” domain (e.g. ben@example.com)',
-      generator: faker.internet.exampleEmail
-    },
-    $randomUserName: {
-      description: 'A random username',
-      generator: faker.internet.userName
-    },
-    $randomProtocol: {
-      description: 'A random internet protocol',
-      generator: faker.internet.protocol
-    },
-    $randomUrl: {
-      description: 'A random URL',
-      generator: faker.internet.url
-    },
-    $randomDomainName: {
-      description: 'A random domain name (e.g. gracie.biz, trevor.info)',
-      generator: faker.internet.domainName
-    },
-    $randomDomainSuffix: {
-      description: 'A random domain suffix (e.g. .com, .net, .org)',
-      generator: faker.internet.domainSuffix
-    },
-    $randomDomainWord: {
-      description: 'A random unqualified domain name (a name with no dots)',
-      generator: faker.internet.domainWord
-    },
-    $randomIP: {
-      description: 'A random IPv4 address',
-      generator: faker.internet.ip
-    },
-    $randomIPV6: {
-      description: 'A random IPv6 address',
-      generator: faker.internet.ipv6
-    },
-    $randomUserAgent: {
-      description: 'A random user agent',
-      generator: faker.internet.userAgent
-    },
-    $randomHexColor: {
-      description: 'A random hex value',
-      generator: faker.internet.color
-    },
-    $randomMACAddress: {
-      description: 'A random MAC address',
-      generator: faker.internet.mac
-    },
-    $randomPassword: {
-      description: 'A random 15-character alpha-numeric password',
-      generator: faker.internet.password
-    },
-
-    $randomLoremWord: {
-      description: 'A random word of lorem ipsum text',
-      generator: faker.lorem.word
-    },
-    $randomLoremWords: {
-      description: 'Some random words of lorem ipsum text',
-      generator: faker.lorem.words
-    },
-    $randomLoremSentence: {
-      description: 'A random sentence of lorem ipsum text',
-      generator: faker.lorem.sentence
-    },
-    $randomLoremSlug: {
-      description: 'A random lorem ipsum URL slug',
-      generator: faker.lorem.slug
-    },
-    $randomLoremSentences: {
-      description: 'A random 2-6 sentences of lorem ipsum text',
-      generator: faker.lorem.sentences
-    },
-    $randomLoremParagraph: {
-      description: 'A random paragraph of lorem ipsum text',
-      generator: faker.lorem.paragraph
-    },
-    $randomLoremParagraphs: {
-      description: '3 random paragraphs of lorem ipsum text',
-      generator: faker.lorem.paragraphs
-    },
-    $randomLoremText: {
-      description: 'A random amount of lorem ipsum text',
-      generator: faker.lorem.text
-    },
-    $randomLoremLines: {
-      description: '1-5 random lines of lorem ipsum',
-      generator: faker.lorem.lines
-    },
-
-    $randomFirstName: {
-      description: 'A random first name',
-      generator: faker.name.firstName
-    },
-    $randomLastName: {
-      description: 'A random last name',
-      generator: faker.name.lastName
-    },
-    $randomFullName: {
-      description: 'A random first and last name',
-      generator: faker.name.findName
-    },
-    $randomJobTitle: {
-      description: 'A random job title (e.g. senior software developer)',
-      generator: faker.name.jobTitle
-    },
-    $randomNamePrefix: {
-      description: 'A random name prefix (e.g. Mr., Mrs., Dr.)',
-      generator: faker.name.prefix
-    },
-    $randomNameSuffix: {
-      description: 'A random name suffix (e.g. Jr., MD, PhD)',
-      generator: faker.name.suffix
-    },
-    $randomJobDescriptor: {
-      description: 'A random job descriptor (e.g., senior, chief, corporate, etc.)',
-      generator: faker.name.jobDescriptor
-    },
-    $randomJobArea: {
-      description: 'A random job area (e.g. branding, functionality, usability)',
-      generator: faker.name.jobArea
-    },
-    $randomJobType: {
-      description: 'A random job type (e.g. supervisor, manager, coordinator, etc.)',
-      generator: faker.name.jobType
-    },
-
-    $randomUUID: {
-      description: 'A random 36-character UUID',
-      generator: faker.datatype.uuid
-    },
-    $randomBoolean: {
-      description: 'A random boolean value (true/false)',
-      generator: faker.datatype.boolean
-    },
-    $randomWord: {
-      description: 'A random word',
-      generator: faker.random.word
-    },
-    $randomAlphaNumeric: {
-      description: 'A random alpha-numeric character',
-      generator: faker.random.alphaNumeric
-    },
-
-    $randomFileName: {
-      description: 'A random file name (includes uncommon extensions)',
-      generator: faker.system.fileName
-    },
-    $randomCommonFileName: {
-      description: 'A random file name',
-      generator: faker.system.commonFileName
-    },
-    $randomMimeType: {
-      description: 'A random MIME type',
-      generator: faker.system.mimeType
-    },
-    $randomCommonFileType: {
-      description: 'A random, common file type (e.g., video, text, image, etc.)',
-      generator: faker.system.commonFileType
-    },
-    $randomCommonFileExt: {
-      description: 'A random, common file extension (.doc, .jpg, etc.)',
-      generator: faker.system.commonFileExt
-    },
-    $randomFileType: {
-      description: 'A random file type (includes uncommon file types)',
-      generator: faker.system.fileType
-    },
-    $randomFileExt: {
-      description: 'A random file extension (includes uncommon extensions)',
-      generator: faker.system.fileExt
-    },
-    $randomSemver: {
-      description: 'A random semantic version number',
-      generator: faker.system.semver
-    }
-  };
-
-const { getCollectionServerId } = require('./libs/utils');
-
-// cli console
-const cliConsole = function (args) {
-  if (isCliMode() && typeof args == 'string') {
-    console.log(args);
-  }
-};
-
-// is apipost-cli mode
-const isCliMode = function (iscli) {
-  if (typeof iscli === 'boolean') {
-    return iscli
-  } else {
-    try {
-      if (process.stdin.isTTY) {
-        const commandName = process.argv[2];
-        if (commandName == 'run') {
-          return true;
-        }
-      }
-
-      return false;
-    } catch (e) { return false; }
-  }
-}
-
-const Collection = function ApipostCollection(definition, option = { iterationCount: 1, sleep: 0 }) {
-  const { iterationCount, sleep } = option;
-
-  const definitionTlp = {
-    parent_id: '-1', // 单任务的父ID
-    event_id: '0', // 单任务的ID
-    iteration: 0, // 当前执行第几轮循环（iteration）
-    iterationCount: 0, // 本次执行需要循环的总轮数
-    iterationData: {}, // excel导入的测试数据变量
-    target_id: '',  // 接口ID ，仅适用于 api或者request
-    request: {}, // 请求参数 ，仅适用于 api或者request
-    response: {}, // 响应参数 ，仅适用于 api或者request
-    cookie: [], // 响应cookie ，仅适用于 api或者request
-    assert: [],
-  };
-
-  (function createRuntimeList(r, parent_id = '0') {
-    if (r instanceof Array && r.length > 0) {
-      r.forEach((item) => {
-        _.assign(item, definitionTlp, {
-          enabled: typeof item.enabled === 'undefined' ? 1 : item.enabled,
-          sort: typeof item.sort === 'undefined' ? 1 : item.sort,
-          parent_id,
-          event_id: item.event_id ? item.event_id : uuid.v4(),
-          test_id: item.test_id ? item.test_id : uuid.v4(),
-          type: item.type,
-          temp_env: _.isObject(item.temp_env) ? item.temp_env : {}, // for 多环境
-          target_id: ['request', 'api', 'sample'].indexOf(item.type) > -1 ? item.data.target_id : '',
-          condition: ['request', 'api', 'sample'].indexOf(item.type) > -1 ? {} : item.data,
-          request: ['request', 'api', 'sample'].indexOf(item.type) > -1 ? item.data : {},
-          info: ['request', 'api', 'sample'].indexOf(item.type) > -1 ? {
-            // requestUrl: item.data.url ? item.data.url : item.data.request.url,
-            // requestName: item.data.name ? item.data.name : (item.data.url ? item.data.url : item.data.request.url),
-            requestId: item.data.target_id,
-          } : {},
-        });
-
-        if ((_.isArray(item.children) && item.children.length > 0)) {
-          createRuntimeList(item.children, item.event_id);
-        }
-      });
-    }
-  }(definition));
-
-  // 构造一个执行对象
-  Object.defineProperty(this, 'definition', {
-    configurable: true,
-    writable: true,
-    value: [_.assign(_.cloneDeep(definitionTlp), {
-      type: 'for',
-      condition: {
-        limit: iterationCount > 0 ? iterationCount : 1,
-        sleep: sleep > 0 ? sleep : 0,
-      },
-      enabled: 1,
-      RUNNER_TOTAL_COUNT: _.size(_.filter(definition, _.matchesProperty('enabled', 1))) * (iterationCount > 0 ? iterationCount : 1),
-      children: _.cloneDeep(definition),
-    })],
-  });
-};
+  { DatabaseQuery } = require('database-query'), // add for 7.2.2
+  { getCollectionServerId,
+    cliConsole,
+    isCliMode,
+    sleepDelay,
+    returnBoolean,
+    getParentTargetIDs,
+    getItemFromCollection,
+    calculateRuntimeReport } = require('./libs/utils'),// for 7.2.2
+  Sandbox = require('./libs/sandbox'),
+  Collection = require('./libs/collection');// for 7.2.2
 
 /*
 @emitRuntimeEvent:请求脚本参数
 @enableUnSafeShell:是否允许执行不安全脚本
 */
 const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = true) {
+  if (typeof emitRuntimeEvent !== 'function') {
+    emitRuntimeEvent = function () { };
+  }
+
+  // 变量替换、脚本执行处理沙盒
+  const mySandbox = new Sandbox(emitRuntimeEvent, enableUnSafeShell);
+
   // 当前流程总错误计数器
   let RUNNER_TOTAL_COUNT = 0, // 需要跑的总event分母
     RUNNER_ERROR_COUNT = 0,
     RUNNER_PROGRESS = 0,
     RUNNER_RESULT_LOG = {},
     RUNNER_STOP = {};
-
-  if (typeof emitRuntimeEvent !== 'function') {
-    emitRuntimeEvent = function () { };
-  }
-
-  // Apipost 沙盒
-  const Sandbox = function ApipostSandbox() {
-    // 内置变量
-    const insideVariablesScope = {
-      list: {}, // 常量
-    };
-
-    /**
-     *  拓展mockjs， 定义一些内置 mock
-     *  fix bug for 7.0.8
-     */
-    const _mockjsRandomExtend = {};
-
-    // 重写 string
-    _mockjsRandomExtend['string'] = function (pool, start, end) {
-      let charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-      if (typeof pool == 'string') {
-        charSet = Mock.mock(pool);
-      }
-
-      if (typeof pool == 'string') {
-        pool = Mock.mock(pool);
-        try {
-          if (!_.isNaN(Number(start))) {
-            if (_.isNaN(Number(end)) === false) {
-              return _.sampleSize(pool, _.random(start, end)).join('');
-            }
-            return _.sampleSize(pool, start).join('');
-          }
-        }
-        catch (ex) {
-          console.log(ex);
-        }
-        return _.sample(pool);
-      }
-
-      if (typeof pool == 'number') {
-
-        if (typeof start == 'number') {
-          return _.sampleSize(charSet, _.random(pool, start)).join('');
-        }
-        return _.sampleSize(charSet, pool).join('')
-      }
-    }
-
-    new Array('telephone', 'phone', 'mobile').forEach(func => {
-      _mockjsRandomExtend[func] = function () {
-        return this.pick(['131', '132', '137', '188']) + Mock.mock(/\d{8}/)
-      };
-    })
-    new Array('username', 'user_name', 'nickname', 'nick_name').forEach(func => {
-      _mockjsRandomExtend[func] = function () {
-        return Mock.mock(`@cname`)
-      };
-    })
-    new Array('avatar', 'icon', 'img', 'photo', 'pic').forEach(func => {
-      _mockjsRandomExtend[func] = function () {
-        return Mock.mock(`@image('400x400')`)
-      };
-    })
-
-    new Array('description').forEach(func => {
-      _mockjsRandomExtend[func] = function () {
-        return Mock.mock(`@cparagraph`)
-      };
-    })
-
-    new Array('id', 'userid', 'user_id', 'articleid', 'article_id').forEach(func => {
-      _mockjsRandomExtend[func] = function () {
-        return Mock.mock(`@integer(100, 1000)`)
-      };
-    })
-
-    Mock.Random.extend(_mockjsRandomExtend);
-
-    // 拓展兼容 Postman 的内置变量 for 7.2.0
-    _.forEach(dynamicGenerators, function (item, key) {
-      if (typeof item.generator == 'function') {
-        insideVariablesScope.list[key] = (function () {
-          try {
-            return item.generator()
-          } catch (e) {
-            return '';
-          }
-        }());
-      }
-    });
-
-    new Array('natural', 'integer', 'float', 'character', 'range', 'date', 'time', 'datetime', 'now', 'guid', 'integeincrementr', 'url', 'protocol', 'domain', 'tld', 'email', 'ip', 'region', 'province', 'city', 'county', 'county', 'zip', 'first', 'last', 'name', 'cfirst', 'clast', 'cname', 'color', 'rgb', 'rgba', 'hsl', 'paragraph', 'cparagraph', 'sentence', 'csentence', 'word', 'cword', 'title', 'ctitle', 'username', 'user_name', 'nickname', 'nick_name', 'avatar', 'icon', 'img', 'photo', 'pic', 'description', 'id', 'userid', 'user_id', 'articleid', 'article_id').forEach((func) => {
-      insideVariablesScope.list[`$${func}`] = Mock.mock(`@${func}`);
-    });
-
-    new Array('phone', 'mobile', 'telephone').forEach((func) => {
-      insideVariablesScope.list[`$${func}`] = ['131', '132', '137', '188'][_.random(0, 3)] + Mock.mock(/\d{8}/);
-    });
-
-    // 兼容 v3
-    insideVariablesScope.list.$timestamp = (function () {
-      return Date.parse(new Date()) / 1000;
-    }());
-
-    insideVariablesScope.list.$microTimestamp = (function () {
-      return (new Date()).getTime();
-    }());
-
-    insideVariablesScope.list.$randomInt = (function () {
-      return Math.floor(Math.random() * 1000);
-    }());
-
-    insideVariablesScope.list.$randomFloat = (function () {
-      return Math.random() * 1000;
-    }());
-
-    // 动态变量
-    const variablesScope = {
-      globals: {}, // 公共变量
-      environment: {}, // 环境变量
-      collectionVariables: {}, // 目录变量 当前版本不支持，目前为兼容postman
-      variables: {}, // 临时变量，无需存库
-      iterationData: {}, // 流程测试时的数据变量，临时变量，无需存库
-    };
-
-    // 获取所有动态变量
-    function getAllDynamicVariables(type) {
-      if (typeof aptScripts === 'object') {
-        Object.keys(variablesScope).forEach((key) => {
-          if (_.isObject(aptScripts[key]) && _.isFunction(aptScripts[key].toObject) && ['iterationData', 'variables'].indexOf(key) > -1) {
-            _.assign(variablesScope[key], aptScripts[key].toObject());
-          }
-        });
-      }
-
-      if (variablesScope.hasOwnProperty(type)) {
-        return _.isObject(variablesScope[type]) ? variablesScope[type] : {};
-      }
-      const allVariables = {};
-      Object.keys(variablesScope).forEach((type) => {
-        _.assign(allVariables, variablesScope[type]);
-      });
-
-      return allVariables;
-    }
-
-    // 设置动态变量
-    const dynamicVariables = {};
-
-    // 变量相关
-    // ['variables'] 临时变量
-    Object.defineProperty(dynamicVariables, 'variables', {
-      configurable: true,
-      value: {
-        set(key, value) {
-          if (_.isObject(value)) {
-            try {
-              value = JSON.stringify(value);
-            } catch (e) {
-              value = String(value);
-            }
-          }
-          variablesScope.variables[key] = value;
-        },
-        get(key) {
-          const allVariables = getAllDynamicVariables();
-          return allVariables[key];
-        },
-        has(key) {
-          return getAllDynamicVariables().hasOwnProperty(key);
-        },
-        delete(key) {
-          delete variablesScope.variables[key];
-        },
-        unset(key) {
-          delete variablesScope.variables[key];
-        },
-        clear() {
-          if (_.isObject(variablesScope.variables)) {
-            _.forEach(variablesScope.variables, (value, key) => {
-              delete variablesScope.variables[key];
-            });
-          }
-          variablesScope.variables = {};
-        },
-        replaceIn(variablesStr) {
-          return replaceIn(variablesStr);
-        },
-        toObject() {
-          return getAllDynamicVariables();
-        },
-      },
-    });
-
-    // ['iterationData'] 临时变量
-    Object.defineProperty(dynamicVariables, 'iterationData', {
-      configurable: true,
-      value: {
-        set(key, value) {
-          variablesScope.iterationData[key] = value;
-        },
-        get(key) {
-          return variablesScope.iterationData[key];
-        },
-        has(key) {
-          return variablesScope.iterationData.hasOwnProperty(key);
-        },
-        replaceIn(variablesStr) {
-          return replaceIn(variablesStr, 'iterationData');
-        },
-        toObject() {
-          return variablesScope.iterationData;
-        },
-        clear() {
-          if (_.isObject(variablesScope.iterationData)) {
-            _.forEach(variablesScope.iterationData, (value, key) => {
-              delete variablesScope.iterationData[key];
-            });
-          }
-          variablesScope.iterationData = {};
-        },
-      },
-    });
-
-    // ['globals', 'environment', 'collectionVariables']
-    Object.keys(variablesScope).forEach((type) => {
-      if (['iterationData', 'variables'].indexOf(type) === -1) {
-        Object.defineProperty(dynamicVariables, type, {
-          configurable: true,
-          value: {
-            set(key, value, emitdb = true) {
-              if (_.isObject(value)) {
-                try {
-                  value = JSON.stringify(value);
-                } catch (e) {
-                  value = String(value);
-                }
-              }
-
-              variablesScope[type][key] = value;
-
-              if (emitdb) {
-                typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].set) && aptScripts[type].set(key, value);
-              }
-            },
-            get(key) {
-              return variablesScope[type][key];
-            },
-            has(key) {
-              return variablesScope[type].hasOwnProperty(key);
-            },
-            delete(key) {
-              delete variablesScope[type][key];
-              typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].delete) && aptScripts[type].delete(key);
-            },
-            unset(key) {
-              delete variablesScope[type][key];
-              typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].delete) && aptScripts[type].delete(key);
-            },
-            clear() {
-              if (_.isObject(variablesScope[type])) { // fix bug
-                _.forEach(variablesScope[type], (value, key) => {
-                  delete variablesScope[type][key];
-                });
-              }
-              variablesScope[type] = {};
-              typeof aptScripts === 'object' && _.isObject(aptScripts[type]) && _.isFunction(aptScripts[type].clear) && aptScripts[type].clear();
-            },
-            replaceIn(variablesStr) {
-              return replaceIn(variablesStr, type);
-            },
-            toObject() {
-              return variablesScope[type];
-            },
-          },
-        });
-      }
-    });
-
-    // 获取所有内置变量
-    function getAllInsideVariables() {
-      return _.cloneDeep(insideVariablesScope.list);
-    }
-
-    // 变量替换
-    function replaceIn(variablesStr, type, withMock = false) {
-      if (!_.isString(variablesStr)) { // fix bug
-        return variablesStr;
-      }
-
-      let allVariables = getAllInsideVariables(); // fix bug
-      // console.log(getAllDynamicVariables(type));
-      // let allVariables = {};
-      _.assign(allVariables, getAllDynamicVariables(type));
-
-      if (withMock) {
-        try {
-          // console.log(variablesStr, typeof variablesStr, Mock.mock(`${variablesStr}`))
-          variablesStr = Mock.mock(variablesStr);
-        } catch (e) { console.log(e) }
-      }
-
-      // 替换自定义变量
-      const _regExp = new RegExp(Object.keys(allVariables).map((item) => {
-        if (_.startsWith(item, '$')) {
-          item = `\\${item}`;
-        }
-        return `\\{\\{${item}\\}\\}`; // fix bug
-      }).join('|'), 'gi');
-
-      variablesStr = _.replace(variablesStr, _regExp, (key) => {
-        let reStr = allVariables[String(_.replace(key, /[{}]/gi, ''))];
-        if (_.isString(reStr)) {
-          reStr = reStr.replace(/\n/g, '\\n');      //bugfix v7.1.4
-        }
-        // console.log(String(_.replace(key, /[{}]/gi, '')), reStr, _regExp);
-        if (typeof reStr !== 'undefined') {
-          return reStr;
-        }
-        return key;
-      });
-      // console.log('allVariables', variablesStr, _regExp);
-      allVariables = null;
-      return variablesStr;
-    }
-
-    // console
-    const consoleFn = {};
-    new Array('log', 'warn', 'info', 'error').forEach((method) => {
-      Object.defineProperty(consoleFn, method, {
-        configurable: true,
-        value() {
-          emitRuntimeEvent({
-            action: 'console',
-            method,
-            message: {
-              type: 'log',
-              data: Array.from(arguments),
-            },
-            timestamp: Date.now(),
-            datetime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-          });
-        },
-      });
-    });
-
-    // 发送断言结果
-    function emitAssertResult(status, expect, result, scope) {
-      if (typeof scope !== 'undefined' && _.isObject(scope) && _.isArray(scope.assert)) {
-        // 更新日志
-        const item = _.isObject(RUNNER_RESULT_LOG) ? RUNNER_RESULT_LOG[scope.iteration_id] : {};
-
-        if (item) {
-          if (!_.isArray(item.assert)) {
-            item.assert = [];
-          }
-
-          item.assert.push({
-            status,
-            expect,
-            result,
-          });
-          // console.log(item, item.assert)
-          if (status === 'success') {
-            if (isCliMode()) {
-              cliConsole('\t✓' + ` ${expect} 匹配`);
-            }
-          } else {
-            RUNNER_ERROR_COUNT++;
-
-            if (isCliMode()) {
-              cliConsole(`\t${RUNNER_ERROR_COUNT}. ${expect} ${result}`);
-            }
-          }
-        }
-      }
-    }
-
-    // 设置响应和请求参数
-    function emitTargetPara(data, scope) {
-      if (typeof scope !== 'undefined' && _.isObject(scope)) {
-        // 更新日志
-
-        if (_.isObject(RUNNER_RESULT_LOG)) {
-          const item = RUNNER_RESULT_LOG[scope.iteration_id];
-
-          if (item) {
-            switch (data.action) {
-              case 'SCRIPT_ERROR':
-                if (item.type == 'api' || item.type == 'sample') {
-                  _.set(item, `script_error.${data.eventName}`, data.data);
-                }
-                break;
-            }
-          }
-        }
-      }
-    }
-
-    // 发送可视化结果
-    function emitVisualizerHtml(status, html, scope) {
-      if (typeof scope !== 'undefined' && _.isObject(scope)) {
-        if (_.isObject(RUNNER_RESULT_LOG)) {
-          const item = RUNNER_RESULT_LOG[scope.iteration_id];
-
-          if (item) {
-            item.visualizer_html = { status, html };
-          }
-        }
-      }
-    }
-
-    // 断言自定义拓展规则（100% 兼容postman）
-    chai.use(() => {
-      require('chai-apipost')(chai);
-    });
-
-    // 执行脚本
-    /**
-         * code js 代码（当前仅支持 js 代码，后续支持多种语言，如 python 等）
-         * scope 当前变量环境对象，里面包含
-         * {
-        //  *      variables   临时变量 此数据为临时数据，无需存库
-         *      globals     公共变量
-         *      environment     环境变量
-         *      collectionVariables     目录变量
-        //  *      iterationData   流程测试时的数据变量 此数据为临时数据，无需存库
-         *      request     请求参数
-         *      response    响应参数
-         *      cookie      cookie
-         *      info        请求运行相关信息
-         * }
-         *
-         * callback 回调
-     * */
-    async function execute(code, scope, eventName, callback, option) {
-      scope = _.isPlainObject(scope) ? _.cloneDeep(scope) : {};
-
-      // 初始化数据库中的当前变量值 init
-      if (typeof aptScripts === 'object') {
-        Object.keys(variablesScope).forEach((key) => {
-          if (_.isObject(aptScripts[key]) && _.isFunction(aptScripts[key].toObject) && ['iterationData', 'variables'].indexOf(key) > -1) {
-            _.assign(variablesScope[key], aptScripts[key].toObject());
-          }
-        });
-      }
-
-      // pm 对象
-      const pm = {};
-
-      // info, 请求、响应、cookie, iterationData
-      new Array('info', 'request', 'response', 'cookie', 'iterationData').forEach((key) => {
-        if (_.indexOf(['request', 'response'], key) > -1) {
-          switch (key) {
-            case 'request':
-              if (_.has(scope, 'script_request') && _.isObject(scope.script_request)) {
-                Object.defineProperty(scope.script_request, 'to', {
-                  get() {
-                    return chai.expect(this).to;
-                  },
-                });
-
-                // for 7.2.0
-                let _pm_headers = [];
-                _.forEach(scope.script_request?.headers, function (value, key) {
-                  _pm_headers.push({
-                    key: key,
-                    value: value
-                  })
-                });
-
-                Object.defineProperty(_pm_headers, 'add', {
-                  configurable: true,
-                  value(key, val) {
-                    return pm.setRequestHeader(key, val);
-                  },
-                });
-
-                Object.defineProperty(_pm_headers, 'upsert', {
-                  configurable: true,
-                  value(key, val) {
-                    return pm.setRequestHeader(key, val);
-                  },
-                });
-
-                Object.defineProperty(_pm_headers, 'remove', {
-                  configurable: true,
-                  value(key) {
-                    return pm.removeRequestQuery(key);
-                  },
-                });
-
-                let _pm_body = {};
-
-                switch (scope.script_request?.mode) {
-                  case 'none':
-                    _pm_body = {};
-                    break;
-                  case 'urlencoded':
-                    let _urlencoded = [];
-                    _.forEach(scope.script_request?.request_bodys, function (value, key) {
-                      _urlencoded.push({
-                        key: key,
-                        value: value,
-                        type: "text"
-                      })
-                    });
-                    _pm_body = {
-                      mode: 'urlencoded',
-                      urlencoded: _urlencoded
-                    };
-                    break;
-                  case 'form-data':
-                    let _formdata = [];
-                    _.forEach(scope.script_request?.request_bodys, function (value, key) {
-                      _formdata.push({
-                        key: key,
-                        value: value,
-                        type: "text"
-                      })
-                    });
-                    _pm_body = {
-                      mode: 'formdata',
-                      formdata: _formdata
-                    };
-                    break;
-                  default:
-                    _pm_body = {
-                      mode: 'raw',
-                      raw: scope.script_request?.request_bodys
-                    };
-                    break;
-                }
-
-                Object.defineProperty(pm, key, {
-                  configurable: true,
-                  value: _.assign(scope.script_request, {
-                    headers: _pm_headers,
-                    body: _pm_body
-                  })
-                });
-              }
-              break;
-            case 'response':
-              if (_.has(scope, `response.data.${key}`) && _.isObject(scope.response.data[key])) {
-                if (scope.response.data[key].hasOwnProperty('rawBody')) {
-                  let json = {};
-
-                  try {
-                    json = JSON5.parse(scope.response.data[key].rawBody);
-                  } catch (e) { }
-
-                  Object.defineProperty(scope.response.data[key], 'json', {
-                    configurable: true,
-                    value() {
-                      return _.cloneDeep(json);
-                    },
-                  });
-
-                  Object.defineProperty(scope.response.data[key], 'text', {
-                    configurable: true,
-                    value() {
-                      return scope.response.data[key].rawBody;
-                    },
-                  });
-                }
-
-                Object.defineProperty(scope.response.data[key], 'to', {
-                  get() {
-                    return chai.expect(this).to;
-                  },
-                });
-
-                Object.defineProperty(pm, key, {
-                  configurable: true,
-                  value: scope.response.data[key],
-                });
-              }
-              break;
-          }
-        } else if (_.isObject(scope[key])) {
-          switch (key) {
-            case 'iterationData':
-              _.assign(variablesScope.iterationData, scope[key]);
-              break;
-            case 'info':
-              _.assign(scope[key], {
-                iteration: scope.iteration,
-                iterationCount: scope.iterationCount,
-                eventName,
-              });
-              break;
-          }
-
-          Object.defineProperty(pm, key, {
-            configurable: true,
-            value: scope[key],
-          });
-        }
-      });
-
-      // 变量相关
-      Object.keys(variablesScope).forEach((type) => {
-        Object.defineProperty(pm, type, {
-          configurable: true,
-          value: dynamicVariables[type],
-        });
-      });
-
-      if (_.isObject(pm.variables)) {
-        Object.defineProperty(pm.variables, 'getName', {
-          configurable: true,
-          value() {
-            return scope.env_name;
-          },
-        });
-
-        // for 7.2.0
-        Object.defineProperty(pm.variables, 'name', {
-          configurable: true,
-          value: scope.env_name
-        });
-
-        Object.defineProperty(pm.variables, 'getPreUrl', {
-          configurable: true,
-          value() {
-            const api_server_id = getCollectionServerId(scope?.target_id, scope?.collection);
-            const script_pre_env_url = scope?.env_pre_urls?.[api_server_id];
-            if (_.isUndefined(script_pre_env_url)) {
-              return scope.env_pre_url;
-            }
-            return script_pre_env_url
-
-          },
-        });
-
-        Object.defineProperty(pm.variables, 'getCollection', {
-          configurable: true,
-          value() {
-            return scope.environment;
-          },
-        });
-
-        Object.defineProperty(pm.environment, 'getName', {
-          configurable: true,
-          value() {
-            return scope.env_name;
-          },
-        });
-
-        // for 7.2.0
-        Object.defineProperty(pm.environment, 'name', {
-          configurable: true,
-          value: scope.env_name,
-        });
-
-        Object.defineProperty(pm.environment, 'getPreUrl', {
-          configurable: true,
-          value() {
-            const api_server_id = getCollectionServerId(scope?.target_id, scope?.collection);
-            const script_pre_env_url = scope?.env_pre_urls?.[api_server_id];
-            if (_.isUndefined(script_pre_env_url)) {
-              return scope.env_pre_url;
-            }
-            return script_pre_env_url
-          },
-        });
-
-        Object.defineProperty(pm.environment, 'getCollection', {
-          configurable: true,
-          value() {
-            return scope.environment;
-          },
-        });
-
-        // for 7.2.0
-        let environment_values = [];
-        _.forEach(scope.environment, function (value, key) {
-          environment_values.push({
-            key: key,
-            value: value,
-            type: "any"
-          });
-        });
-
-        Object.defineProperty(pm.environment, 'values', {
-          configurable: true,
-          value: environment_values,
-        });
-
-        // for 7.2.0
-        let globals_values = [];
-        _.forEach(scope.globals, function (value, key) {
-          globals_values.push({
-            key: key,
-            value: value,
-            type: "any"
-          });
-        });
-
-        Object.defineProperty(pm.globals, 'values', {
-          configurable: true,
-          value: globals_values,
-        });
-      }
-
-      // 请求参数相关
-      if (typeof scope !== 'undefined' && _.isObject(scope) && _.has(scope, 'request.request')) {
-        // 更新日志
-
-        if (_.isObject(RUNNER_RESULT_LOG)) {
-          const item = RUNNER_RESULT_LOG[scope.iteration_id];
-
-          if (item) {
-            Object.defineProperty(pm, 'setRequestQuery', {
-              configurable: true,
-              value(key, value) {
-                if (_.trim(key) != '') {
-                  if (!_.has(item, 'beforeRequest.query')) {
-                    _.set(item, 'beforeRequest.query', []);
-                  }
-
-                  item.beforeRequest.query.push({
-                    action: 'set',
-                    key,
-                    value,
-                  });
-                }
-              },
-            });
-
-            Object.defineProperty(pm, 'removeRequestQuery', {
-              configurable: true,
-              value(key) {
-                if (_.trim(key) != '') {
-                  if (!_.has(item, 'beforeRequest.query')) {
-                    _.set(item, 'beforeRequest.query', []);
-                  }
-
-                  item.beforeRequest.query.push({
-                    action: 'remove',
-                    key,
-                  });
-                }
-              },
-            });
-
-            Object.defineProperty(pm, 'setRequestHeader', {
-              configurable: true,
-              value(key, value) {
-                if (_.trim(key) != '') {
-                  if (!_.has(item, 'beforeRequest.header')) {
-                    _.set(item, 'beforeRequest.header', []);
-                  }
-
-                  item.beforeRequest.header.push({ // fix bug for 7.0.8
-                    action: 'set',
-                    key: String(key),
-                    value: String(value),
-                  });
-                }
-              },
-            });
-
-            Object.defineProperty(pm, 'removeRequestHeader', {
-              configurable: true,
-              value(key) {
-                if (_.trim(key) != '') {
-                  if (!_.has(item, 'beforeRequest.header')) {
-                    _.set(item, 'beforeRequest.header', []);
-                  }
-
-                  item.beforeRequest.header.push({
-                    action: 'remove',
-                    key,
-                  });
-                }
-              },
-            });
-
-            Object.defineProperty(pm, 'setRequestBody', {
-              configurable: true,
-              value(key, value) {
-                if (_.trim(key) != '') {
-                  if (!_.has(item, 'beforeRequest.body')) {
-                    _.set(item, 'beforeRequest.body', []);
-                  }
-
-                  item.beforeRequest.body.push({
-                    action: 'set',
-                    key,
-                    value,
-                  });
-                }
-              },
-            });
-
-            Object.defineProperty(pm, 'removeRequestBody', {
-              configurable: true,
-              value(key) {
-                if (_.trim(key) != '') {
-                  if (!_.has(item, 'beforeRequest.body')) {
-                    _.set(item, 'beforeRequest.body', []);
-                  }
-
-                  item.beforeRequest.body.push({
-                    action: 'remove',
-                    key,
-                  });
-                }
-              },
-            });
-          }
-        }
-      }
-
-      // cookies
-      // for 7.2.0
-      const cookies = {
-        has: function (key) {
-          let res_cookies = scope?.response?.data?.response?.cookies;
-          if (_.isObject(res_cookies)) {
-            return Object.keys(res_cookies).indexOf(key) > -1 ? true : false;
-          } else {
-            return false;
-          }
-        },
-        get: function (key) {
-          let res_cookies = scope?.response?.data?.response?.cookies;
-          if (_.isObject(res_cookies)) {
-            return res_cookies[key];
-          } else {
-            return '';
-          }
-        },
-        toObject: function () {
-          let res_cookies = scope?.response?.data?.response?.cookies;
-          if (_.isObject(res_cookies)) {
-            return res_cookies;
-          } else {
-            return {};
-          }
-        },
-        jar: function () {
-          return {
-            set: function (url, name, value, callback) {
-              if (typeof callback != 'function') {
-                callback = function () { };
-              }
-
-              try {
-                if (_.isArray(scope?.jar?.data)) {
-                  let _replace = 0;
-                  let _cookie = {};
-                  _.forEach(scope?.jar?.data, function (item, key) {
-                    if (item.domain == url && item.name == name) {
-                      _replace = 1;
-                      _.set(scope, `jar.data[${key}].value`, value);
-                      _cookie = _.get(scope, `jar.data[${key}].value`);
-                    }
-                  });
-
-                  if (!_replace) {
-                    _cookie = {
-                      "name": name,
-                      "value": value,
-                      "expires": new Date((new Date()).getTime() + 24 * 60 * 60 * 1000),
-                      "path": "/",
-                      "httpOnly": false,
-                      "secure": false,
-                      // "hostOnly": true,
-                      "cookie_id": uuid.v4(),
-                      "domain": url,
-                      "key": name,
-                      "project_id": _.get(scope, 'data.project_id')
-                    }
-
-                    scope?.jar?.data.push(_cookie);
-                  }
-                  callback(null, _cookie);
-                }
-              } catch (e) {
-                callback(String(e))
-              }
-            },
-            get: function (url, name, callback) {
-              if (typeof callback != 'function') {
-                callback = function () { };
-              }
-
-              try {
-                if (_.isArray(scope?.jar?.data)) {
-                  let _cookie = _.find(scope?.jar?.data, function (item) {
-                    return item.domain == url && item.name == name
-                  });
-                  callback(null, _cookie?.value);
-                }
-              } catch (e) {
-                callback(String(e))
-              }
-            },
-            getAll: function (url, callback) {
-              if (typeof callback != 'function') {
-                callback = function () { };
-              }
-
-              try {
-                if (_.isArray(scope?.jar?.data)) {
-                  let _cookies = _.filter(scope?.jar?.data, function (item) {
-                    return item.domain == url;
-                  });
-                  callback(null, _cookies);
-                }
-              } catch (e) {
-                callback(String(e))
-              }
-            },
-            unset: function (url, name, callback) {
-              if (typeof callback != 'function') {
-                callback = function () { };
-              }
-
-              try {
-                if (_.isArray(scope?.jar?.data)) {
-                  _.remove(scope?.jar?.data, function (item) {
-                    return item.domain == url && item.name == name;
-                  });
-                  callback(null);
-                }
-              } catch (e) {
-                callback(String(e))
-              }
-            },
-            clear: function (url, callback) {
-              if (typeof callback != 'function') {
-                callback = function () { };
-              }
-
-              try {
-                if (_.isArray(scope?.jar?.data)) {
-                  _.remove(scope?.jar?.data, function (item) {
-                    return item.domain == url;
-                  });
-                  callback(null);
-                }
-              } catch (e) {
-                callback(String(e))
-              }
-            }
-          }
-        }
-      };
-
-      Object.defineProperty(pm, 'cookies', {
-        configurable: true,
-        value: cookies,
-      });
-
-      // expert
-      Object.defineProperty(pm, 'expect', {
-        configurable: true,
-        value: chai.expect,
-      });
-
-      // test
-      Object.defineProperty(pm, 'test', {
-        configurable: true,
-        value(desc, callback) {
-          try {
-            callback();
-            emitAssertResult('success', desc, '成功', scope);
-          } catch (e) {
-            emitAssertResult('error', desc, e.toString().replace('AssertionError', '断言校验失败'), scope);
-          }
-        },
-      });
-
-      // assert
-      Object.defineProperty(pm, 'assert', {
-        configurable: true,
-        value(assert) {
-          try {
-            const _response = _.cloneDeep(pm.response);
-
-            if (_.isFunction(_response.json)) {
-              _response.json = _response.json();
-            }
-
-            chai.assert.isTrue(new Function('response', 'request', 'window', `return ${String(assert)}`)(_response, _.cloneDeep(pm.request)));
-            emitAssertResult('success', String(assert), '成功', scope);
-            return true; // fixed bug
-          } catch (e) {
-            emitAssertResult('error', String(assert), e.toString().replace('AssertionError', '断言校验失败').replace('expected false to be true', '表达式不成立'), scope);
-            return false; // fixed bug
-          }
-        },
-      });
-
-      // 发送方法
-      Object.defineProperty(pm, 'sendRequest', {
-        configurable: true,
-        value: nodeAjax, // fix bug
-      });
-
-      // 可视化
-      Object.defineProperty(pm, 'visualizer', {
-        configurable: true,
-        value: {
-          set: (template, data) => {
-            try {
-              const html = artTemplate.render(template, data);
-              emitVisualizerHtml('success', `<link rel="stylesheet" href="https://img.cdn.apipost.cn/docs/css7/content-v7.css?20220909" type="text/css" media="screen"> ${html}`, scope);
-            } catch (e) {
-              emitVisualizerHtml('error', e.toString(), scope);
-            }
-          },
-        },
-      });
-
-      // 执行外部程序
-      enableUnSafeShell && Object.defineProperty(pm, 'execute', {
-        configurable: true,
-        value: function (file, args, extra) {
-          if (_.isString(file)) {
-            try {
-              try {
-                fs.accessSync(file);
-              } catch (e) {
-                let externalPrograms = _.get(option, 'requester.externalPrograms');
-                if (_.isString(externalPrograms) && externalPrograms != '') {
-                  try {
-                    file = path.join(path.resolve(externalPrograms), file);
-                    fs.accessSync(file);
-                  } catch (e) {
-                    file = path.join(path.resolve(ASideTools.getCachePath()), `apipost`, 'ExternalPrograms', file);
-                  }
-                } else {
-                  file = path.join(path.resolve(ASideTools.getCachePath()), `apipost`, 'ExternalPrograms', file);
-                }
-              }
-
-              let command = ``;
-              switch (_.toLower(file.substr(file.lastIndexOf(".")))) {
-                case '.go':
-                  command = `go run `;
-                  break;
-                case '.php':
-                  command = `php -f `;
-                  break;
-                case '.py':
-                  command = `python `
-                  break;
-                case '.js':
-                  command = `node `
-                  break;
-                case '.jar':
-                  if (_.isObject(extra) && _.isObject(process) && _.isString(_.get(process, 'resourcesPath'))) {
-                    let className = _.get(extra, 'className')
-                    let method = _.get(extra, 'method')
-
-                    if (_.isString(className) && _.isString(method)) {
-                      let jarPath = path.join(path.resolve(process.resourcesPath), `app`, `jar-main-1.0-SNAPSHOT.jar`);
-                      let para = new Buffer(JSON.stringify({ "methodName": method, "args": args })).toString('base64');
-                      command = `java -jar ${jarPath}  ${file} ${className} '${para}'`
-                    }
-                  } else {
-                    command = `java -jar `
-                  }
-
-                  break;
-                case '.sh':
-                  command = `bash `
-                  break;
-                case '.ruby':
-                  command = `ruby `
-                  break;
-                case '.lua':
-                  command = `lua `
-                  break;
-                case '.bsh':
-                  command = `bsh `
-              }
-
-              if (command != '') {
-                if (_.toLower(file.substr(file.lastIndexOf("."))) == '.jar' && _.isObject(extra) && _.isObject(process) && _.isString(_.get(process, 'resourcesPath'))) {
-                  return String(child_process.execSync(`${command}`))
-                } else {
-                  // fix bug for 7.1.7
-                  return String(child_process.execSync(`${command} ${file} ${_.join(_.map(args, JSON.stringify), ' ')}`))
-                }
-              }
-            }
-            catch (e) { return String(e.stderr) }
-          }
-        },
-      });
-
-      Object.defineProperty(pm, 'Visualizing', {
-        configurable: true,
-        value: (template, data) => {
-          try {
-            const html = artTemplate.render(template, data);
-            // console.log(html, template);
-            emitVisualizerHtml('success', `<link rel="stylesheet" href="https://img.cdn.apipost.cn/docs/css7/content-v7.css?20220909" type="text/css" media="screen"> ${html}`, scope);
-          } catch (e) {
-            // console.log(e);
-            emitVisualizerHtml('error', e.toString(), scope);
-          }
-        },
-      });
-
-      Object.defineProperty(pm, 'getData', { // 此方法为兼容 postman ，由于流程差异，暂时不支持
-        configurable: true,
-        value(callback) {
-          // @todo
-        },
-      });
-
-      // 跳过下面的流程直接到执行指定接口
-      Object.defineProperty(pm, 'setNextRequest', { // 此方法为兼容 postman ，由于流程差异，暂时不支持
-        configurable: true,
-        value(target_id) {
-          // @todo
-        },
-      });
-
-      // 执行
-      try {
-        // const $ = {};
-
-        $.md5 = function (str) { // 兼容旧版
-          return CryptoJS.MD5(str).toString();
-        };
-
-        $.ajax = await nodeAjax;
-
-        // fix bug
-        code = `(async function () {
-          ${code}
-        })()`;
-        let scriptTimeout = _.toNumber(_.get(option, 'requester.timeoutScript'));
-
-        if (scriptTimeout <= 0) {
-          scriptTimeout = 5000;
-        }
-
-        // for 7.2.0
-        const postman = {
-          setEnvironmentVariable: pm.environment.set,
-          getEnvironmentVariable: pm.environment.get,
-          clearEnvironmentVariable: pm.environment.delete,
-          clearEnvironmentVariables: pm.environment.clear,
-          setGlobalVariable: pm.globals.set,
-          getGlobalVariable: pm.globals.get,
-          clearGlobalVariable: pm.globals.delete,
-          clearGlobalVariables: pm.globals.clear,
-          setNextRequest: pm.setNextRequest,
-          getResponseCookie: function (key) {
-            let cookies = scope?.response?.data?.response?.rawCookies;
-
-            if (_.isObject(cookies)) {
-              return _.find(cookies, function (item) { return item.name == key; });
-            } else {
-              return undefined;
-            }
-          },
-          getResponseHeader: function (key) {
-            let headers = scope?.response?.data?.response?.headers;
-
-            if (_.isObject(headers)) {
-              return headers[key]
-            } else {
-              return undefined;
-            }
-          }
-        };
-
-        await (new vm2.VM({
-          timeout: scriptTimeout,
-          sandbox: _.assign({
-            ...{ nodeAjax },
-            ...{ pm },
-            ...{ chai },
-            ...{ emitAssertResult },
-            ...{ JSON5 },
-            ...{ _ },
-            ...{ Mock },
-            ...{ uuid },
-            ...{ jsonpath },
-            ...{ CryptoJS },
-            // ...{ $ },
-            ...{ x2js },
-            JSEncrypt: JSEncryptNode,
-            ...{ moment },
-            ...{ dayjs },
-            JSON, // 增加 JSON 方法 // fixed JSON5 bug
-            console: consoleFn,
-            print: consoleFn.log,
-            async: asyncModule,
-            FormData,
-            require: function () { },
-            sm2, // fix bug for 7.0.8
-            sm3, // fix bug for 7.0.8
-            sm4, // fix bug for 7.0.8
-            csv2array: csv2json,
-            mysql,
-            mssql, ClickHouse, pgClient,
-            fs: enableUnSafeShell ? fs : {},
-            path, json2csv, // for 7.0.13
-            xml2json(xml) {
-              return (new x2js()).xml2js(xml);
-            },
-            uuidv4() {
-              return uuid.v4();
-            },
-            URL: urlNode,
-            ...{ uuid },
-            ...{ aTools },
-            ...{ validCookie },
-            ...{ urlJoin },
-            urljoins, // fix bug for 7.0.8
-            apt: pm,
-            faker: faker, // for 7.2.0
-            postman: postman, // for 7.2.
-            apipost: postman, // for 7.2.0
-            fox: pm, // for 7.2.0 
-            cheerio: cheerio, // for 7.2.0 
-            tv4: tv4, // for 7.2.0 
-            Ajv: Ajv,// for 7.2.0 
-            xml2js: xml2js,// for 7.2.0 
-            atob: atob,// for 7.2.0 
-            btoa: btoa,// for 7.2.0 
-            require: require,// for 7.2.0 支持 require
-            $,
-            request: pm.request ? _.assign(_.cloneDeep(pm.request), { headers: pm.request?.request_headers }) : {},
-            response: pm.response ? _.assign(_.cloneDeep(pm.response), { json: _.isFunction(pm.response.json) ? pm.response.json() : pm.response.json }) : {},
-            expect: chai.expect,
-            sleep: atomicSleep,
-            // child_process
-            // sleep(ms) {
-            //   const end = Date.now() + parseInt(ms);
-            //   while (true) {
-            //     if (Date.now() > end) {
-            //       return;
-            //     }
-            //   }
-            // },
-          }, variablesScope),
-        })).run(new vm2.VMScript(code));
-        typeof callback === 'function' && callback(null, pm.response, scope?.jar);
-      } catch (err) {
-        emitTargetPara({
-          action: 'SCRIPT_ERROR',
-          eventName,
-          data: `${eventName == 'pre_script' ? '预执行' : '后执行'}脚本语法错误: ${err.toString()}`,
-        }, scope);
-        typeof callback === 'function' && callback(err.toString(), {}, scope?.jar);
-      }
-    }
-
-    _.assign(this, {
-      ...{ execute },
-      ...{ getAllInsideVariables },
-      ...{ getAllDynamicVariables },
-      ...{ dynamicVariables },
-      ...{ variablesScope },
-      ...{ replaceIn },
-    });
-  };
-
-  const mySandbox = new Sandbox();
-
-  // sleep 延迟方法
-  function sleepDelay(ms) {
-    atomicSleep(ms)
-  }
-
-  // 根据测试条件返回布尔值
-  function returnBoolean(exp, compare, value) {
-    let bool = false;
-    if (exp === '') { // fix bug
-      return compare == 'null';
-    }
-
-    // get request
-    if (typeof exp == 'string' && _.has(PREV_REQUEST, 'request') && _.startsWith(exp, `{{request\.`) && _.endsWith(exp, '}}')) {
-      let _path = String(_.trimEnd(_.trimStart(exp, `{{request`), '}}'));
-
-      if (_path.substr(0, 1) == '.') {
-        _path = _path.substr(1)
-      }
-
-      exp = _.get(PREV_REQUEST.request, _path);
-    }
-
-    if (typeof value == 'string' && _.has(PREV_REQUEST, 'request') && _.startsWith(value, `{{request\.`) && _.endsWith(value, '}}')) {
-      let _path = String(_.trimEnd(_.trimStart(value, `{{request`), '}}'));
-
-      if (_path.substr(0, 1) == '.') {
-        _path = _path.substr(1)
-      }
-
-      value = _.get(PREV_REQUEST.request, _path);
-    }
-
-    // get response
-    if (typeof exp == 'string' && _.has(PREV_REQUEST, 'response') && _.startsWith(exp, `{{response\.`) && _.endsWith(exp, '}}')) {
-      let _path = String(_.trimEnd(_.trimStart(exp, `{{response`), '}}'));
-
-      if (_path.substr(0, 1) == '.') {
-        _path = _path.substr(1)
-      }
-
-      exp = _.get(PREV_REQUEST.response, _path);
-    }
-
-    if (typeof value == 'string' && _.has(PREV_REQUEST, 'response') && _.startsWith(value, `{{response\.`) && _.endsWith(value, '}}')) {
-      let _path = String(_.trimEnd(_.trimStart(value, `{{response`), '}}'));
-
-      if (_path.substr(0, 1) == '.') {
-        _path = _path.substr(1)
-      }
-
-      value = _.get(PREV_REQUEST.response, _path);
-    }
-
-    switch (compare) {
-      case 'eq':
-        bool = exp == value;
-        break;
-      case 'uneq':
-        bool = exp != value;
-        break;
-      case 'gt':
-        bool = _.gt(Number(exp), Number(value));
-        break;
-      case 'gte':
-        bool = _.gte(Number(exp), Number(value));
-        break;
-      case 'lt':
-        bool = _.lt(Number(exp), Number(value));
-        break;
-      case 'lte':
-        bool = _.lte(Number(exp), Number(value));
-        break;
-      case 'includes':
-        bool = _.includes(exp, value) || _.includes(exp, Number(value)); // fix bug
-        break;
-      case 'unincludes':
-        bool = !_.includes(exp, value) && !_.includes(exp, Number(value)); // fix bug
-        break;
-      case 'null':
-        bool = _.isNull(exp, value);
-        break;
-      case 'notnull':
-        bool = !_.isNull(exp, value);
-        break;
-    }
-
-    return bool;
-  }
-
-  // 获取某接口的 所有父target
-  function getParentTargetIDs(collection, target_id, parent_ids = []) {
-    if (_.isArray(collection)) {
-      const item = _.find(collection, _.matchesProperty('target_id', target_id));
-
-      if (item) {
-        parent_ids.push(item.parent_id);
-        getParentTargetIDs(collection, item.parent_id, parent_ids);
-      }
-    }
-
-    return parent_ids;
-  }
-
-  // 获取 指定 event_id 的 initDefinitions 的所有父亲ID
-  function getInitDefinitionsParentIDs(event_id, initDefinitions = []) {
-    const definitionArr = [];
-
-    (function convertArray(initDefinitions) {
-      if (_.isArray(initDefinitions)) {
-        initDefinitions.forEach((item) => {
-          definitionArr.push({
-            event_id: item.event_id,
-            parent_id: item.parent_id,
-          });
-
-          if (_.isArray(item.children)) {
-            convertArray(item.children);
-          }
-        });
-      }
-    }(initDefinitions));
-
-    const parentArr = [];
-
-    (function getParentArr(event_id) {
-      definitionArr.forEach((item) => {
-        if (item.event_id == event_id) {
-          // if (uuid.validate(item.parent_id)) {
-          if (item.parent_id != '0') {
-            parentArr.push(item.parent_id);
-            getParentArr(item.parent_id);
-          }
-        }
-      });
-    }(event_id));
-
-    return parentArr;
-  }
-
-  // 获取某接口的详细信息
-  function getItemFromCollection(collection, target_id) {
-    return _.find(collection, _.matchesProperty('target_id', target_id));
-  }
-
-  // 计算runtime 结果
-  function calculateRuntimeReport(log, initDefinitions = [], report_id = '', option = {}) {
-    log = Object.values(log);
-
-    // 说明： 本api统计数字均已去重
-    // 接口去重后的api集合
-    const _uniqLog = _.uniqWith(log, (source, dist) => _.isEqual(source.target_id, dist.target_id));
-
-    // 接口未去重后的忽略集合
-    const _ignoreLog = _.filter(log, item => item.http_error == -2);
-
-    // 接口去重后的忽略集合
-    const _uniqIgnoreLog = _.uniqWith(_ignoreLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
-
-    // 接口未去重后的http失败集合
-    const _httpErrorLog = _.filter(log, item => item.http_error == 1);
-
-    // 接口去重后的http失败集合
-    const _uniqHttpErrorLog = _.uniqWith(_httpErrorLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
-
-    // 接口未去重后的assert失败集合
-    const _assertErrorLog = _.filter(log, item => _.find(item.assert, _.matchesProperty('status', 'error')));
-
-    // 接口去重后的assert失败集合
-    const _uniqAssertErrorLog = _.uniqWith(_assertErrorLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
-
-    // 接口未去重后的assert成功集合
-    const _assertPassedLog = _.filter(log, item => _.size(item.assert) > 0 && !_.find(item.assert, _.matchesProperty('status', 'error')));
-
-    // 接口去重后的assert成功集合
-    const _uniqAssertPassedLog = _.uniqWith(_assertPassedLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
-
-    // 接口未去重后的http成功集合
-    const _httpPassedLog = _.filter(log, item => item.http_error == -1 && !_.find(_uniqHttpErrorLog, _.matchesProperty('target_id', item.target_id)));
-
-    // 接口去重后的http成功集合
-    const _uniqHttpPassedLog = _.uniqWith(_httpPassedLog, (source, dist) => _.isEqual(source.target_id, dist.target_id));
-    // console.log(_uniqHttpPassedLog);
-    // 计算 总api数
-    const totalCount = _.size(_uniqLog);
-
-    // 计算 未忽略的总api数
-    const totalEffectiveCount = _.subtract(totalCount, _.size(_uniqIgnoreLog));
-
-    // 计算 http 错误个数
-    const httpErrorCount = _.size(_uniqHttpErrorLog);
-
-    // 计算 http 成功个数
-    const httpPassedCount = _.size(_uniqHttpPassedLog);
-
-    // 计算 assert 错误个数
-    const assertErrorCount = _.size(_uniqAssertErrorLog);
-
-    // 计算 assert 错误个数
-    const assertPassedCount = _.size(_uniqAssertPassedLog);
-
-    // 计算 忽略接口 个数
-    const ignoreCount = _.size(_uniqIgnoreLog);
-
-    // 获取 event 事件状态
-    const eventResultStatus = {};
-
-    Object.values(log).forEach((item) => {
-      // 计算各个event的状态 [ignore, failure, passed]
-      if (_.isArray(initDefinitions)) {
-        const parent_ids = getInitDefinitionsParentIDs(item.event_id, initDefinitions);
-
-        if (_.find(item.assert, _.matchesProperty('status', 'error'))) {
-          item.assert_error = 1;
-        } else {
-          item.assert_error = -1;
-        }
-
-        if (item.http_error == 1 || _.find(item.assert, _.matchesProperty('status', 'error'))) { // failure
-          eventResultStatus[item.event_id] = 'failure';
-          parent_ids.forEach((parent_id) => {
-            if (_.indexOf(Object.keys(eventResultStatus), parent_id) == -1) {
-              eventResultStatus[parent_id] = 'failure';
-            }
-          });
-        } else if (item.http_error == -2) {
-          eventResultStatus[item.event_id] = 'ignore';
-          parent_ids.forEach((parent_id) => {
-            if (_.indexOf(Object.keys(eventResultStatus), parent_id) == -1) {
-              eventResultStatus[parent_id] = 'ignore';
-            }
-          });
-        } else if (item.http_error == -1) {
-          eventResultStatus[item.event_id] = 'passed';
-          parent_ids.forEach((parent_id) => {
-            if (_.indexOf(Object.keys(eventResultStatus), parent_id) == -1) {
-              eventResultStatus[parent_id] = 'passed';
-            }
-          });
-        }
-      }
-    });
-
-    const definitionList = [];
-
-    (function convertInitDefinitions(initDefinitions) {
-      initDefinitions.forEach((item) => {
-        if (_.isString(item.test_id)) {
-          definitionList.push({
-            event_id: item.event_id,
-            parent_event_id: item.parent_id,
-            data: (item.type == 'api' || item.type == 'sample') ? item.request : item.condition,
-            enabled: item.enabled,
-            project_id: item.project_id,
-            sort: item.sort,
-            test_id: item.test_id,
-            type: item.type,
-            report_id,
-            runtime: item.runtime,
-            runtime_status: eventResultStatus[item.event_id],
-          });
-        }
-
-        if (_.isArray(item.children)) {
-          convertInitDefinitions(item.children);
-        }
-      });
-    }(initDefinitions));
-
-    // 计算 received_data， total_response_time
-    let _total_received_data = 0,
-      _total_response_time = 0,
-      _total_response_count = 0;
-
-    _.forEach(log, (item) => {
-      if (_.has(item, 'response.data.response.responseSize')) {
-        _total_response_count++;
-        _total_received_data = _.add(_total_received_data, Number(item.response.data.response.responseSize));
-        _total_response_time = _.add(_total_response_time, Number(item.response.data.response.responseTime));
-      }
-    });
-
-    if (typeof option.env === 'undefined') {
-      option.env = {
-        env_id: option.env_id ? option.env_id : -1,
-        env_name: option.env_name,
-        env_pre_url: option.env_pre_url,
-        env_pre_urls: option?.env_pre_urls,
-      };
-    } else {
-      option.env_id = option.env.env_id;
-      option.env_name = option.env.env_name;
-      option.env_pre_url = option.env.env_pre_url;
-      option.env_pre_urls = option.env?.env_pre_urls;
-    }
-
-    const report = {
-      combined_id: option.combined_id,
-      report_id,
-      report_name: option.default_report_name,
-      env_id: option.env.env_id,
-      env_name: option.env.env_name,
-      env_pre_url: option.env.env_pre_url,
-      env_pre_urls: option.env?.env_pre_urls,
-      user: option.user,
-      total_count: totalCount,
-      total_effective_count: totalEffectiveCount,
-      ignore_count: ignoreCount,
-      total_received_data: _.floor(_total_received_data, 2),
-      total_response_time: _.floor(_total_response_time, 2),
-      average_response_time: _.floor(_.divide(_total_response_time, _total_response_count), 2),
-      http_errors: _httpErrorLog,
-      assert_errors: _assertErrorLog,
-      ignore_errors: _ignoreLog,
-      http: {
-        passed: httpPassedCount,
-        passed_per: _.floor(_.divide(httpPassedCount, totalCount), 2),
-        failure: httpErrorCount,
-        failure_per: _.floor(_.divide(httpErrorCount, totalCount), 2),
-      },
-      assert: {
-        passed: assertPassedCount,
-        passed_per: _.floor(_.divide(assertPassedCount, totalCount), 2),
-        failure: assertErrorCount,
-        failure_per: _.floor(_.divide(assertErrorCount, totalCount), 2),
-      },
-      start_time: startTime,
-      end_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-      long_time: `${_.floor(_.divide(Date.now() - startTimeStamp, 1000), 2)} 秒`,
-      children: [],
-    };
-
-    if (!_.has(report, 'user.nick_name')) {
-      _.set(report, 'user.nick_name', '匿名');
-    }
-    if (uuid.validate(option.combined_id) && _.isArray(option.test_events)) { // 测试套件
-      _.assign(report, {
-        type: 'combined',
-        test_id: _.isArray(option.test_events) ? (_.map(option.test_events, o => o.test_id)) : [option.test_events.test_id],
-      });
-
-      option.test_events.forEach((test_event) => {
-        report.children.push(calculateRuntimeReport(_.filter(log, o => o.test_id == test_event.test_id), initDefinitions, report_id, _.assign(option, {
-          combined_id: 0,
-          test_events: test_event,
-          default_report_name: test_event.name,
-        })));
-      });
-    } else { // 单测试用例
-      const _test_id = _.isArray(option.test_events) ? option.test_events[0].test_id : option.test_events.test_id;
-      _.assign(report, {
-        type: 'single',
-        test_id: _test_id,
-        event_status: eventResultStatus,
-        test_events: _.filter(definitionList, o => o.test_id == _test_id),
-      });
-    }
-    log = null;
-    return report;
-  }
 
 
   // 参数初始化
@@ -2447,13 +91,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
       requester: {}, // 发送模块的 options
     }, option);
 
-    let { RUNNER_REPORT_ID, scene, project, cookies, collection, iterationData, combined_id, test_events, default_report_name, user, env, env_name, env_pre_url, env_pre_urls, environment, globals, iterationCount, ignoreError, ignore_error, enable_sandbox, sleep, requester } = option;
+    let { RUNNER_REPORT_ID, scene, project, cookies, collection, iterationData, combined_id, test_events, default_report_name, user, env, env_name, env_pre_url, env_pre_urls, environment, globals, iterationCount, ignoreError, ignore_error, enable_sandbox, sleep, requester, connectionConfigs } = option;
 
     if (typeof ignoreError === 'undefined') {
       ignoreError = ignore_error ? !!ignore_error : 0;
     } else {
       ignoreError = !!ignoreError;
     }
+
     ignore_error = ignoreError ? 1 : 0;
     enable_sandbox = typeof enable_sandbox === 'undefined' ? -1 : enable_sandbox; // fix bug
 
@@ -2476,7 +121,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
       }
 
       // 设置sandbox的 environment变量 和 globals 变量
-      // fix bug for 7.0.8
       new Array('environment', 'globals').forEach((func) => {
         if (_.isObject(option[func]) && _.isObject(mySandbox.dynamicVariables[func]) && _.isFunction(mySandbox.dynamicVariables[func].set)) {
           for (const [key, value] of Object.entries(option[func])) {
@@ -2547,17 +191,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
     // 自动替换 Mock
     const AUTO_CONVERT_FIELD_2_MOCK = typeof requester === 'object' && requester.AUTO_CONVERT_FIELD_2_MOCK > 0;
 
-
-    // // 设置sandbox的 environment变量 和 globals 变量
-    // new Array('environment', 'globals').forEach((func) => {
-    //   console.log(option[func])
-    //   if (_.isObject(option[func]) && _.isObject(mySandbox.dynamicVariables[func]) && _.isFunction(mySandbox.dynamicVariables[func].set)) {
-    //     for (const [key, value] of Object.entries(option[func])) {
-    //       mySandbox.dynamicVariables[func].set(key, value, false);
-    //     }
-    //   }
-    // });
-
     // 发送对象
     const request = new apipostRequest(_.isObject(requester) ? requester : {});
 
@@ -2578,7 +211,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
     if (_.isArray(definitions) && definitions.length > 0) {
       for (let i = 0; i < definitions.length; i++) {
         const definition = definitions[i];
-        // RUNNER_RUNTIME_POINTER
 
         _.assign(definition, {
           iteration_id: uuid.v4(),  // 每次执行单任务的ID
@@ -2615,12 +247,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
             case 'script':
               // case 'assert':
               if (_.has(definition, 'data.content') && _.isString(definition.data.content)) {
-                await mySandbox.execute(definition.data.content, _.assign(definition, { jar: cookies }), 'test', (err, res, jar) => { // for 7.2.0
-                  cookies = jar;// 7.2.0
+                await mySandbox.execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, option, definition.data.content, _.assign(definition, { jar: cookies }), 'test', (err, res, jar, scope) => {
+                  cookies = jar;
+
                   if (err && ignoreError < 1) {
                     stop(RUNNER_REPORT_ID, String(err));
                   }
-                }, option);
+                });
               }
               break;
             case 'if':
@@ -2644,6 +277,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 } else {
                   // 还原前置url 优先从env_pre_urls中取，取不到则从原env_pre_url中取
                   env_pre_url = env?.env_pre_urls?.[api_server_id];
+
                   if (_.isUndefined(env_pre_url)) {
                     env_pre_url = env.env_pre_url;
                   }
@@ -2663,8 +297,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   _requestBody = null;
                 }
 
-                new Array('header', 'body', 'query', 'auth', 'pre_script', 'test', 'resful').forEach((_type) => {
-                  // 参数
+                // for 7.2.2
+                let para_arrays = ['header', 'body', 'query', 'auth', 'pre_script', 'pre_tasks', 'post_tasks', 'test', 'resful'];
+
+                for (let _j = 0; _j < para_arrays.length; _j++) {
+                  let _type = para_arrays[_j];
+
+                  // 参数 7.2.2 add  'pre_tasks', 'post_tasks'
                   if (_.indexOf(['header', 'body', 'query', 'resful'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = _type == 'header' ? {} : [];
@@ -2710,7 +349,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             if (_.isUndefined(_requestPara[_type][_.trim(item.key)])) {
                               _requestPara[_type][_.trim(item.key)] = item;
                             } else {
-                              if (_.isObject(item) && !_.isUndefined(item.field_type)) {
+                              if (!_.isUndefined(item.field_type)) {
                                 _requestPara[_type][_.trim(item.key)] = item;
                               }
                             }
@@ -2737,9 +376,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                     if (_.isArray(_parent_ids) && _parent_ids.length > 0) {
                       _parent_ids.forEach((parent_id) => {
                         const _folder = getItemFromCollection(collection, parent_id);
-                        // console.log(_folder);
                         if (_.has(_folder, `request.['${_type}']`) && _.isObject(_folder.request[_type]) && _folder.request[_type].type != 'noauth') {
-                          // console.log(_folder.request[_type]);
                           _.assign(_requestPara[_type], _folder.request[_type]);
                         }
                       });
@@ -2750,11 +387,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                       _.assign(_requestPara[_type], definition.request.request[_type]);
                     }
                   }
-                  // console.log(_requestPara);
-                  // mySandbox.replaceIn(item.key, null, AUTO_CONVERT_FIELD_2_MOCK)
 
-                  // 脚本
-                  if (_.indexOf(['pre_script', 'test'], _type) > -1) {
+                  // 公共/目录脚本 for 7.2.2
+                  if (_.indexOf(['pre_script', 'test', 'pre_tasks', 'post_tasks'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = '';
                     }
@@ -2776,13 +411,67 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                         }
                       });
                     }
+                  }
 
+                  // 脚本 for 7.2.2
+                  if (_.indexOf(['pre_script', 'test'], _type) > -1) {
                     // 接口脚本
                     if (_.has(definition, `request.request.event.${_type}`) && _.isString(definition.request.request.event[_type])) {
                       _requestPara[_type] = `${_requestPara[_type]}\r\n${definition.request.request.event[_type]}`;
                     }
                   }
-                });
+
+                  // 前后置 for 7.2.2
+                  if (_.indexOf(['pre_tasks', 'post_tasks'], _type) > -1) {
+                    if (!_.isObject(connectionConfigs)) {
+                      connectionConfigs = {};
+                    }
+
+                    if (_.has(definition, `request.request.${_type}`) && _.isArray(definition?.request?.request[_type])) {
+                      for (let _i = 0; _i < definition?.request?.request[_type].length; _i++) {
+                        let item = definition?.request?.request[_type][_i];
+
+                        if (_.isObject(item)) {
+                          switch (_.toLower(item.type)) {
+                            case 'database': // database 最终也是要转化成脚本
+                              if (Number(item.enabled) > 0 && _.isObject(connectionConfigs[item.data?.connectionId])) {
+                                try {
+                                  let _db_res = await DatabaseQuery(connectionConfigs[item.data?.connectionId], item.data?.query);
+
+                                  if (Number(item.data?.isConsoleOutput) > 0) {
+                                    _requestPara[_type] = `${_requestPara[_type]}\r\nconsole.log(${JSON.stringify(_db_res?.result)});`
+                                  }
+
+                                  if (_.isArray(item.data?.variables)) {
+                                    _.forEach(item.data?.variables, function (vars) {
+
+                                      let _var_val = '';
+
+                                      if (_.isObject(_db_res?.result)) {
+                                        _var_val = jsonpath.value(_db_res?.result, vars.pattern ? vars.pattern : '$');
+                                      } else {
+                                        _var_val = _db_res?.result;
+                                      }
+
+                                      _requestPara[_type] = `${_requestPara[_type]}\r\npm.${vars.type}.set("${vars.name}",${JSON.stringify(_var_val)});`
+                                    });
+                                  }
+                                } catch (e) {
+                                  _requestPara[_type] = `${_requestPara[_type]}\r\nconsole.log("${e?.result}");`
+                                }
+                              }
+                              break;
+                            case 'customscript': // 拼写自定义脚本
+                              if (Number(item.enabled) > 0 && _.isString(item.data) && !_.isEmpty(_.trim(item.data))) {
+                                _requestPara[_type] = `${_requestPara[_type]}\r\n${item.data}`
+                              }
+                              break;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
 
                 let _timeout = 0;
                 if (_.has(option, 'requester.timeout') && _.isNumber(option.requester.timeout) && option.requester.timeout >= 0) {
@@ -2822,7 +511,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 const _script_querys = {};
                 if (_.has(_requestPara, 'query')) {
                   _.forEach(request.formatQueries(_requestPara.query), (value, key) => {
-                    // _script_querys[key] = value; // fix bug for 7.0.8
                     _script_querys[mySandbox.replaceIn(key, null, AUTO_CONVERT_FIELD_2_MOCK)] = mySandbox.replaceIn(value, null, AUTO_CONVERT_FIELD_2_MOCK);
                   });
                 }
@@ -2862,8 +550,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
                 // script_request_para
                 // 环境前缀 fix bug
-                // for 多环境
-                // if(_.isString(_.get(temp_env,definition.temp_env)))
                 let _script_pre_url = mySandbox.replaceIn(env_pre_url, null, AUTO_CONVERT_FIELD_2_MOCK);
                 let _script_url = mySandbox.replaceIn(definition.request.url, null, AUTO_CONVERT_FIELD_2_MOCK);
 
@@ -2873,7 +559,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                     _script_pre_url = `http://${_script_pre_url}`;
                   }
 
-                  // _script_url = urlJoin(_script_pre_url, _script_url);
                   _script_url = urljoins(_script_pre_url, _script_url);// fix bug for 7.0.8
 
                   if (_.endsWith(_script_pre_url, '/')) { // fix bug
@@ -2922,15 +607,25 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 // 执行预执行脚本
                 _.set(definition, 'script_request', _request_para); // fix bug
 
-                if (_.has(_requestPara, 'pre_script') && _.isString(_requestPara.pre_script)) {
-                  await mySandbox.execute(_requestPara.pre_script, _.assign(definition, { jar: cookies }), 'pre_script', (err, res, jar) => { // for 7.2.0
-                    cookies = jar;// for 7.2.0
+                // for 7.2.2
+                let _pre_script = '';
 
-                    if (err && ignoreError < 1) {
-                      stop(RUNNER_REPORT_ID, String(err));
-                    }
-                  }, option);
+                if (_.has(_requestPara, 'pre_tasks') && _.isString(_requestPara.pre_tasks) && !_.isEmpty(_requestPara.pre_tasks)) {
+                  _pre_script = _requestPara.pre_tasks;
+                } else if (_.has(_requestPara, 'pre_script') && _.isString(_requestPara.pre_script)) {
+                  _pre_script = _requestPara.pre_script;
                 }
+
+                await mySandbox.execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, option, _pre_script, _.assign(definition, { jar: cookies }), 'pre_script', (err, res, jar, scope) => { // for 7.2.2
+                  cookies = jar;// for 7.2.0
+                  if (err && ignoreError < 1) {
+                    stop(RUNNER_REPORT_ID, String(err));
+                  }
+
+                  if (_.isString(scope?.script_request?.updateurl)) {
+                    _.set(definition.request, 'updateurl', scope?.script_request?.updateurl) // for 7.2.2
+                  }
+                });
 
                 let _request = _.cloneDeep(definition.request);
 
@@ -2965,7 +660,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   });
                 }
 
-                // 重新渲染请求参数
+                // 脚本重置了请求参数
                 let _target = _.isObject(RUNNER_RESULT_LOG) ? RUNNER_RESULT_LOG[definition.iteration_id] : {};
 
                 if (typeof _target === 'object' && _.isObject(_target.beforeRequest)) {
@@ -3016,7 +711,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                       });
                     }
 
-                    // fix bug for 7.1.16
                     if (type == 'header') {
                       // 重置请求头的 content-type
                       let _contentType = '';
@@ -3104,7 +798,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
                 if (_.isObject(_requestPara.auth[_requestPara.auth.type])) {
                   _requestPara.auth[_requestPara.auth.type] = _.mapValues(_requestPara.auth[_requestPara.auth.type], val => mySandbox.replaceIn(val, null, AUTO_CONVERT_FIELD_2_MOCK));
-                  // console.log(_request, _requestPara);
                   _.set(_request, 'request.auth.type', _requestPara.auth.type); // fix bug
                   _.set(_request, `request.auth.${_requestPara.auth.type}`, _requestPara.auth[_requestPara.auth.type]);
                 }
@@ -3152,7 +845,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 let _isHttpError = -1;
 
                 // cookie
-                // 已修复 cookie 无法使用的问题
                 if (typeof cookies === 'object' && _.has(cookies, 'switch') && _.has(cookies, 'data')) {
                   if (cookies.switch > 0 && _.isArray(cookies.data)) {
                     const _cookieArr = [];
@@ -3161,7 +853,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                         _cookie.name = _cookie.key;
                       }
 
-                      // 兼容cookie返回异常时的报错问题 for 7.1.7
                       if (_.isString(_cookie.name) && _cookie.name != '') {
                         try {
                           const cookieStr = validCookie.isvalid(_url, _cookie);
@@ -3206,13 +897,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 }
 
                 //如果是mock环境，则携带apipost_id
-                if (`${option.env_id}` === '-2') {
+                if (`${option.env_id}` == '-2') {
                   //判断query数组内是否包含apipost_id
                   const requestApipostId = _request?.request?.query?.parameter.find(item => item.key === 'apipost_id');
                   if (_.isUndefined(requestApipostId)) {
                     _request.request.query.parameter.push({
                       key: 'apipost_id',
-                      value: _request.target_id.substr(0, 6),
+                      value: _.take(_request?.target_id, 6).join(''),
                       description: '',
                       not_null: 1,
                       field_type: 'String',
@@ -3220,10 +911,27 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                       is_checked: 1,
                     });
                   }
+
+                  try {
+                    let _urlParse = urlNode.parse(_pre_url);
+                    let _mock_url = _.trim(_request?.mock_url);
+
+                    if (_.isEmpty(_mock_url) || _mock_url == '/') {
+                      let _urlParse = urlNode.parse(_request?.url);
+                      _mock_url = _urlParse?.pathname;
+                    }
+
+                    _.set(_request, 'updateurl', urljoins(_pre_url, _.trimStart(_request?.mock_url, _urlParse?.path), `?apipost_id=${_.take(_request?.target_id, 6).join('')}`));
+                  } catch (e) { }
+                }
+
+                // for 7.2.2
+                if (_.isString(_request?.updateurl)) {
+                  _.set(_request, 'url', _request?.updateurl);
+                  _.set(_request, 'request.url', _request?.updateurl);
                 }
 
                 try {
-                  // console.log(_request)
                   // 合并请求参数
                   res = await request.request(_request);
                 } catch (e) {
@@ -3235,14 +943,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   RUNNER_ERROR_COUNT++;
 
                   if (scene == 'auto_test' && isCliMode()) {
-                    cliConsole(`\n${_request.method} ${_request.url}`);
-                    cliConsole(`\t${RUNNER_ERROR_COUNT}. HTTP 请求失败`); // underline.
+                    cliConsole(`\n${_request.method} ${_request.url}`.grey);
+                    cliConsole(`\t${RUNNER_ERROR_COUNT}. HTTP 请求失败`.bold.red); // underline.
                   }
                 } else {
                   _isHttpError = -1;
                   if (scene == 'auto_test' && isCliMode()) {
-                    cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}KB, ${res.data.response.responseTime}ms]`);
-                    cliConsole('\t✓' + ' HTTP 请求成功');
+                    cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}KB, ${res.data.response.responseTime}ms]`.grey);
+                    cliConsole('\t✓'.green + ' HTTP 请求成功'.grey);
                   }
                 }
 
@@ -3341,7 +1049,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                           },
                           response: {},
                           message: _response.message,
-                          status: 'error',
+                          status: 'error'
                         },
                       },
                       timestamp: Date.now(),
@@ -3361,21 +1069,27 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 }
 
                 // 执行后执行脚本
-                if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
-                  if (_.isString(_global_asserts_script) && _.trim(_global_asserts_script) != '') {
-                    _requestPara.test = `${_requestPara.test}\r\n${_global_asserts_script}`;
-                  }
+                // for 7.2.2
+                let _test_script = '';
 
-                  await mySandbox.execute(_requestPara.test, _.assign(definition, { response: res, jar: cookies }), 'test', (err, exec_res, jar) => {
-                    cookies = jar; // 7.2.0
-
-                    if (err && ignoreError < 1) {
-                      stop(RUNNER_REPORT_ID, String(err));
-                    } else if (_.has(exec_res, 'raw.responseText') && _.has(res, 'data.response.raw.responseText') && exec_res.raw.responseText != res.data.response.raw.responseText) {
-                      _.set(_response, 'data.response.changeBody', exec_res.raw.responseText);
-                    }
-                  }, option);
+                if (_.has(_requestPara, 'post_tasks') && _.isString(_requestPara.post_tasks) && !_.isEmpty(_requestPara.post_tasks)) {
+                  _test_script = _requestPara.post_tasks;
+                } else if (_.has(_requestPara, 'test') && _.isString(_requestPara.test)) {
+                  _test_script = _requestPara.test;
                 }
+
+                if (_.isString(_global_asserts_script) && _.trim(_global_asserts_script) != '') {
+                  _test_script = `${_test_script}\r\n${_global_asserts_script}`;
+                }
+
+                await mySandbox.execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, option, _test_script, _.assign(definition, { response: res, jar: cookies }), 'test', (err, exec_res, jar) => {
+                  cookies = jar; // 7.2.0
+                  if (err && ignoreError < 1) {
+                    stop(RUNNER_REPORT_ID, String(err));
+                  } else if (_.has(exec_res, 'raw.responseText') && _.has(res, 'data.response.raw.responseText') && exec_res.raw.responseText != res.data.response.raw.responseText) {
+                    _.set(_response, 'data.response.changeBody', exec_res.raw.responseText);
+                  }
+                });
 
                 // fit support response && request
                 if (_.isObject(_request_para)) {
@@ -3470,7 +1184,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 _.set(definition, 'runtime.condition', `${mySandbox.replaceIn(definition.condition.var)} ${definition.condition.compare} ${mySandbox.replaceIn(definition.condition.value)}`);
 
                 let _i = 0;
-                while ((returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value)))) {
+                while (returnBoolean(mySandbox.replaceIn(definition.condition.var), definition.condition.compare, mySandbox.replaceIn(definition.condition.value), PREV_REQUEST)) {
                   if (Date.now() > end) {
                     break;
                   }
@@ -3683,6 +1397,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   cliConsole(failedTable.toString());
                 }
               }
+
               ignoreEvents = null;
             } else { // 接口请求
               const _http = _.isObject(RUNNER_RESULT_LOG) ? RUNNER_RESULT_LOG[definition.iteration_id] : {};
