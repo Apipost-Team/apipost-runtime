@@ -817,7 +817,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                     xml2js,
                     atob,
                     btoa,
-                    require,
+                    require:require,
                     $,
                     apipost: postman,
                     request: pm.request ? _.assign(_.cloneDeep(pm.request), { url: pm.request?.url?.toString(), headers: pm.request?.request_headers }) : {}, // 7.2.2
