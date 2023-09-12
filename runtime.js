@@ -515,6 +515,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   });
                 }
 
+                // script_variables
+                let _script_variables = {};
+                _.forEach(_requestPara?.resful, (item) => {
+                  _script_variables[mySandbox.replaceIn(item?.key, null, AUTO_CONVERT_FIELD_2_MOCK)] = mySandbox.replaceIn(item?.value, null, AUTO_CONVERT_FIELD_2_MOCK)
+                });
+
                 // script_body
                 let _script_bodys = {};
 
@@ -582,6 +588,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   request_querys: _script_querys,
                   mode: _script_mode, // for 7.2.0
                   request_bodys: _script_bodys,
+                  request_variables: _script_variables, // 7.2.3
                   data: _script_bodys,
                   headers: _script_request_headers,
                 };

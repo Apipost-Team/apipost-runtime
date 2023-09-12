@@ -384,7 +384,7 @@ const calculateRuntimeReport = function (log, initDefinitions = [], report_id = 
     if (!_.has(report, 'user.nick_name')) {
         _.set(report, 'user.nick_name', '匿名');
     }
-    
+
     if (uuid.validate(option.combined_id) && _.isArray(option.test_events)) { // 测试套件
         _.assign(report, {
             type: 'combined',
@@ -485,6 +485,11 @@ const arrayPrototypeExtend = function (obj) {
             value() {
                 return _.join(_.map(obj, item => `${item.key}:${item.value}`), '\n')
             },
+        });
+
+        Object.defineProperty(obj, 'members', { // 10
+            configurable: true,
+            value: obj
         });
     } else if (_.isObject(obj) && !_.isFunction(obj)) {
         Object.defineProperty(obj, 'toJSON', { // 1

@@ -94,6 +94,19 @@ const pmRequestUrl = function (scope, pm) {
         }
     } catch (e) { }
 
+    // variables
+    let request_variables = scope.script_request?.request_variables;
+
+    if(!_.isObject(request_variables)){
+        request_variables = {}
+    } 
+
+    Object.defineProperty(_urls, 'variables', {
+        configurable: true,
+        enumerable: true,
+        value:_.map(Object.entries(request_variables), ([key, value]) => { return { key, value }; })
+    });
+
     Object.defineProperty(_urls, 'toString', {
         configurable: true,
         value() {
