@@ -950,14 +950,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   RUNNER_ERROR_COUNT++;
 
                   if (scene == 'auto_test' && isCliMode()) {
-                    cliConsole(`\n${_request.method} ${_request.url}`.grey);
-                    cliConsole(`\t${RUNNER_ERROR_COUNT}. HTTP 请求失败`.bold.red); // underline.
+                    cliConsole(`\n${_request.method} ${_request.url}`);
+                    cliConsole(`\t${RUNNER_ERROR_COUNT}. HTTP 请求失败`); // underline.
                   }
                 } else {
                   _isHttpError = -1;
                   if (scene == 'auto_test' && isCliMode()) {
-                    cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}KB, ${res.data.response.responseTime}ms]`.grey);
-                    cliConsole('\t✓'.green + ' HTTP 请求成功'.grey);
+                    cliConsole(`\n${_request.method} ${_request.url} [${res.data.response.code} ${res.data.response.status}, ${res.data.response.responseSize}KB, ${res.data.response.responseTime}ms]`);
+                    cliConsole('\t✓' + ' HTTP 请求成功');
                   }
                 }
 

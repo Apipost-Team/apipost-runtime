@@ -519,6 +519,7 @@ const arrayPrototypeExtend = function (obj) {
 module.exports = {
     getCollectionServerId,
     cliConsole,
+    isCliMode,
     sleepDelay,
     returnBoolean,
     getParentTargetIDs,
