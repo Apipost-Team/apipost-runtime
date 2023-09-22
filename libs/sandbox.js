@@ -66,6 +66,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
         variablesScope = { // 自定义变量
             globals: {}, // 公共变量
             environment: {}, // 环境变量
+            privates: {}, // 私有变量
             collectionVariables: {}, // 目录变量 当前版本不支持，目前为兼容postman
             variables: {}, // 临时变量，无需存库
             iterationData: {}, // 流程测试时的数据变量，临时变量，无需存库
@@ -216,7 +217,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
         },
     });
 
-    // ['globals', 'environment', 'collectionVariables']
+    // ['globals', 'privates', 'environment', 'collectionVariables']
     Object.keys(variablesScope).forEach((type) => {
         if (['iterationData', 'variables'].indexOf(type) === -1) {
             Object.defineProperty(dynamicVariables, type, {
@@ -473,7 +474,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
         });
 
         // 变量相关
-        // pm.variables,pm.environment,pm.globals
+        // pm.variables,pm.environment,pm.globals,pm.privates
         Object.keys(variablesScope).forEach((type) => {
             Object.defineProperty(pm, type, {
                 configurable: true,
@@ -518,8 +519,8 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                 });
             });
 
-            // pm.environment.values, pm.globals.values
-            ['environment', 'globals'].forEach((type) => {
+            // pm.environment.values, pm.globals.values pm.privates.values
+            ['environment', 'globals', 'privates'].forEach((type) => {
                 let _values = [];
                 _.forEach(scope[type], function (value, key) {
                     _values.push({
@@ -744,6 +745,10 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                 getGlobalVariable: pm.globals.get,
                 clearGlobalVariable: pm.globals.delete,
                 clearGlobalVariables: pm.globals.clear,
+                setPrivateVariable: pm.privates.set,
+                getPrivateVariable: pm.privates.get,
+                clearPrivateVariable: pm.privates.delete,
+                clearPrivateVariables: pm.privates.clear,
                 setNextRequest: pm.setNextRequest,
                 getResponseCookie: function (key) {
                     let cookies = scope?.response?.data?.response?.rawCookies;
