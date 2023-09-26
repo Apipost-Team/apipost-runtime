@@ -1,6 +1,6 @@
 {
   "name": "apipost-runtime",
-  "version": "1.1.112",
+  "version": "1.1.114",
   "description": "apipost-runtime 支持单接口http请求、自动化测试",
   "main": "./dist/index.js",
   "files": [
@@ -36,8 +36,6 @@
     "async": "^3.2.4",
     "atob": "^2.1.2",
     "atomic-sleep": "^1.0.0",
-    "database-query": "^1.0.6",
-    "csv-parse": "^5.5.0",
     "btoa": "^1.2.1",
     "buffer": "^6.0.3",
     "chai": "^4.3.6",
@@ -48,6 +46,8 @@
     "clickhouse": "^2.6.0",
     "cookie": "^0.5.0",
     "crypto-js": "^4.1.1",
+    "csv-parse": "^5.5.0",
+    "database-query": "^1.0.8",
     "dayjs": ">=1.11.4",
     "faker-js": "^1.0.0",
     "form-data": "^4.0.0",
