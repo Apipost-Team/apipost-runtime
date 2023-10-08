@@ -654,7 +654,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                             case 'database': // database 最终也是要转化成脚本
                               if (Number(item.enabled) > 0 && _.isObject(connectionConfigs[item.data?.connectionId])) {
                                 try {
-                                  let _db_res = await DatabaseQuery(connectionConfigs[item.data?.connectionId], item.data?.query);
+                                  let _db_res = await DatabaseQuery(connectionConfigs[item.data?.connectionId], mySandbox.replaceIn(item.data?.query)); // fix 执行语句没有进行变量替换的bug
 
                                   if (Number(item.data?.isConsoleOutput) > 0) {
                                     _requestPara[_type] = `${_requestPara[_type]}\r\nconsole.log(${JSON.stringify(_db_res?.result)});`
