@@ -230,10 +230,22 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
       option.env_pre_urls = option.env?.env_pre_urls;
     }
 
+    if (typeof option.bank === 'undefined') {
+        option.bank = {
+          bank_id: option?.bank_id || '',
+          bank_name: option?.bank_name || '',
+        };
+      } else {
+        option.bank_id = option.bank.bank_id;
+        option.bank_name = option.bank.bank_name;
+      }
+
     const report = {
       combined_id: option.combined_id,
       report_id,
       report_name: option.default_report_name,
+      bank_id: option.bank.bank_id,
+      bank_name: option.bank.bank_name,
       env_id: option.env.env_id,
       env_name: option.env.env_name,
       env_pre_url: option.env.env_pre_url,
@@ -301,6 +313,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
       project: {},
       collection: [], // 当前项目的所有接口列表
       environment: {}, // 当前环境变量
+      bankConstants: {}, // 当前法人行变量
       globals: {}, // 当前公共变量
       privates: {}, // 当前私有变量
       iterationData: [], // 当前迭代的excel导入数据
@@ -310,7 +323,35 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
       requester: {}, // 发送模块的 options
     }, option);
 
-    let { RUNNER_REPORT_ID, scene, project, cookies, collection, iterationData, combined_id, test_events, default_report_name, user, env, env_name, env_pre_url, env_pre_urls, environment, globals, privates, iterationCount, ignoreError, ignore_error, enable_sandbox, sleep, requester, connectionConfigs } = option;
+    let {
+        RUNNER_REPORT_ID,
+        scene,
+        project,
+        cookies,
+        collection,
+        iterationData,
+        combined_id,
+        test_events,
+        default_report_name,
+        user,
+        bank,
+        bank_name,
+        bankConstants,
+        env,
+        env_name,
+        env_pre_url,
+        env_pre_urls,
+        environment,
+        globals,
+        privates,
+        iterationCount,
+        ignoreError,
+        ignore_error,
+        enable_sandbox,
+        sleep,
+        requester,
+        connectionConfigs
+    } = option;
 
     if (typeof ignoreError === 'undefined') {
       ignoreError = ignore_error ? !!ignore_error : 0;
@@ -339,8 +380,8 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
         return;
       }
 
-      // 设置sandbox的 environment变量 和 globals 和 privates 变量
-      new Array('environment', 'globals', 'privates').forEach((func) => {
+      // 设置sandbox的 bankConstants常量 environment变量 和 globals 和 privates 变量
+      new Array('environment', 'globals', 'privates', 'bankConstants').forEach((func) => {
         if (_.isObject(option[func]) && _.isObject(mySandbox.dynamicVariables[func]) && _.isFunction(mySandbox.dynamicVariables[func].set)) {
           for (const [key, value] of Object.entries(option[func])) {
             mySandbox.dynamicVariables[func].set(key, value, false);
@@ -437,11 +478,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
           iterationData: iterationData[loopCount] ? iterationData[loopCount] : iterationData[0],
           ...{ iterationCount },
           ...{ env_name },
+          ...{ bank_name },
           ...{ env_pre_url },
           ...{ env_pre_urls },
           ...{ collection },
           ...{ environment },
           ...{ globals },
+          ...{ bankConstants },
           ...{ privates },
         });
 
@@ -1516,6 +1559,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 envs: {
                   globals: mySandbox.variablesScope.globals,
                   environment: _.assign(mySandbox.variablesScope.environment, mySandbox.variablesScope.variables), // fix variables bug
+                  bankConstants: mySandbox.variablesScope.bankConstants,
                   privates: mySandbox.variablesScope.privates,
                 },
                 ignore_events: ignoreEvents,
@@ -1635,6 +1679,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 envs: {
                   globals: mySandbox.variablesScope.globals,
                   environment: _.assign(mySandbox.variablesScope.environment, mySandbox.variablesScope.variables), // fix variables bug
+                  bankConstants: mySandbox.variablesScope.bankConstants,
                   privates: mySandbox.variablesScope.privates,
                 },
                 data: {
