@@ -783,8 +783,9 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
 
                                 if (['tempVars', 'envVars', 'globalVars'].indexOf(item?.data?.type) > -1) {
                                   _assert_script = `apt.test("${_assert_title}", () => {
-                                      apt.expect(${_assert_func}(apt.${item?.data?.type}.get(${JSON.stringify(item?.data?.expression?.path)}))).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
+                                      apt.expect(${_assert_func}(apt.${ASSERT_TYPES[item?.data?.type]?.value}.get(${JSON.stringify(item?.data?.expression?.path)}))).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
                                   });`
+                                  console.log(_assert_script)
                                 } else if (['responseText', 'responseCode', 'responseTime', 'responseSize'].indexOf(item?.data?.type) > -1) {
                                   _assert_script = `apt.test("${_assert_title}", () => {
                                       apt.expect(${_assert_func}(${ASSERT_TYPES[item?.data?.type]?.value})).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
