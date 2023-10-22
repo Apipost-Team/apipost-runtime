@@ -39,6 +39,8 @@ const sm2 = require('sm-crypto').sm2,
     tv4 = require('tv4'),
     Ajv = require('ajv'),
     xml2js = require('xml2js'),
+    xpath = require('xpath'),// for 7.2.3
+    dom = require('@xmldom/xmldom').DOMParser,// for 7.2.3
     atob = require('atob'),
     btoa = require('btoa'),
     { DatabaseQuery } = require('database-query'), // add for 7.2.2
@@ -292,7 +294,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
     });
 
     // 执行脚本
-    async function execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT,option, code, scope, eventName, callback) {
+    async function execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, option, code, scope, eventName, callback) {
         scope = _.isPlainObject(scope) ? _.cloneDeep(scope) : {};
 
         // pm 对象
@@ -413,6 +415,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
 
                                 Object.defineProperty(scope.response.data[key], 'json', {
                                     configurable: true,
+                                    enumerable: true,
                                     value() {
                                         return _.cloneDeep(json);
                                     },
@@ -420,6 +423,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
 
                                 Object.defineProperty(scope.response.data[key], 'text', {
                                     configurable: true,
+                                    enumerable: true,
                                     value() {
                                         return scope.response.data[key].rawBody;
                                     },
@@ -789,6 +793,8 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                     sm2,
                     sm3,
                     sm4,
+                    xpath,
+                    dom,
                     DatabaseQuery, // for 7.2.2
                     csvParse: parse, // for 7.2.2
                     csv2array: csv2json,
@@ -817,7 +823,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                     xml2js,
                     atob,
                     btoa,
-                    require:require,
+                    require: require,
                     $,
                     apipost: postman,
                     request: pm.request ? _.assign(_.cloneDeep(pm.request), { url: pm.request?.url?.toString(), headers: pm.request?.request_headers }) : {}, // 7.2.2
