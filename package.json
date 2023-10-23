@@ -1,6 +1,6 @@
 {
   "name": "apipost-runtime",
-  "version": "1.1.118",
+  "version": "1.1.119",
   "description": "apipost-runtime 支持单接口http请求、自动化测试",
   "main": "./dist/index.js",
   "files": [
@@ -61,6 +61,9 @@
     "url-join": "4.0.1",
     "urljoins": "^0.0.3",
     "x2js": "^3.4.3",
+    "xpath": "^0.0.33",
+    "xml2js": "^0.6.2",
+    "xmldom": "^0.6.0",
     "zlib": "^1.0.5"
   },
   "peerDependencies": {
