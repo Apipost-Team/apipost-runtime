@@ -616,6 +616,11 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                                 file = path.join(path.resolve(ASideTools.getCachePath()), `apipost`, 'ExternalPrograms', file);
                             }
                         }
+                        let resourcesPath = _.get(process, 'resourcesPath');
+
+                        if(!_.isString(resourcesPath)){
+                            resourcesPath = '';
+                        }
 
                         let command = ``;
                         switch (_.toLower(file.substr(file.lastIndexOf(".")))) {
@@ -632,12 +637,12 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                                 command = `node `
                                 break;
                             case '.jar':
-                                if (_.isObject(extra) && _.isObject(process) && _.isString(_.get(process, 'resourcesPath'))) {
+                                if (_.isObject(extra)) {
                                     let className = _.get(extra, 'className')
                                     let method = _.get(extra, 'method')
 
                                     if (_.isString(className) && _.isString(method)) {
-                                        let jarPath = path.join(path.resolve(process.resourcesPath), `app`, `jar-main-1.0-SNAPSHOT.jar`);
+                                        let jarPath = path.join(path.resolve(resourcesPath), `app`, `jar-main-1.0-SNAPSHOT.jar`);
                                         let para = new Buffer(JSON.stringify({ "methodName": method, "args": args })).toString('base64');
                                         command = `java -jar ${jarPath}  ${file} ${className} '${para}'`
                                     }
@@ -660,10 +665,9 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                         }
 
                         if (command != '') {
-                            if (_.toLower(file.substr(file.lastIndexOf("."))) == '.jar' && _.isObject(extra) && _.isObject(process) && _.isString(_.get(process, 'resourcesPath'))) {
+                            if (_.toLower(file.substr(file.lastIndexOf("."))) == '.jar' && _.isObject(extra)) {
                                 return String(child_process.execSync(`${command}`))
                             } else {
-                                // fix bug for 7.1.7
                                 return String(child_process.execSync(`${command} ${file} ${_.join(_.map(args, JSON.stringify), ' ')}`))
                             }
                         }
