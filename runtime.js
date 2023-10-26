@@ -855,13 +855,24 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                 let _vars_script = '';
 
                                 _.forEach(item?.data?.variables, (variable) => {
-                                  let _vars_val = `jsonpath.value(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}, ${JSON.stringify(variable?.expression)})`
+                                  let _vars_val = ''
+                                  if (['responseJson'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = `jsonpath.value(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}, ${JSON.stringify(variable?.expression)})`
+                                  } else if (['responseXml'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = `xpath.select(${JSON.stringify(variable?.expression)}, new dom().parseFromString("${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}", 'text/xml'));)`
+                                  } else if (['responseText'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = `_.get(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}.match(${variable?.expression}),1)`;
+                                  } else if (['responseHeader', 'responseCookie'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = `_.get(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}, ${JSON.stringify(variable?.expression)})`
+                                  } else if (['responseCode', 'responseTime', 'responseSize'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = _.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`);
+                                  }
+
                                   _vars_script = `\r\n${_vars_script}\r\napt.${VARS_TYPES[variable?.type]}.set("${variable?.name}", ${_vars_val});\r\n`;
                                 });
 
                                 if (_vars_script != '') {
                                   _requestPara[_type] = `${_requestPara[_type]}\r\n${_vars_script}`;
-                                  console.log(_vars_script)
                                 }
                               }
                               break;
