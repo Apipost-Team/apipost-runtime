@@ -800,7 +800,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                   });`
                                 } else if (['responseXml'].indexOf(item?.data?.type) > -1) {
                                   _assert_script = `apt.test("${_assert_title}", () => {
-                                      var nodes = xpath.select(${JSON.stringify(item?.data?.expression?.path)}, new dom().parseFromString("${ASSERT_TYPES[item?.data?.type]?.value}", 'text/xml'));
+                                      var nodes = xpath.select(${JSON.stringify(item?.data?.expression?.path)}, new dom().parseFromString(${ASSERT_TYPES[item?.data?.type]?.value}, 'text/xml'));
                                       apt.expect(${_assert_func}(nodes)).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
                                   });`
                                 }
@@ -859,7 +859,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                   if (['responseJson'].indexOf(item?.data?.source) > -1) {
                                     _vars_val = `jsonpath.value(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}, ${JSON.stringify(variable?.expression)})`
                                   } else if (['responseXml'].indexOf(item?.data?.source) > -1) {
-                                    _vars_val = `xpath.select(${JSON.stringify(variable?.expression)}, new dom().parseFromString("${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}", 'text/xml'));)`
+                                    _vars_val = `xpath.select(${JSON.stringify(variable?.expression)}, new dom().parseFromString(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}, 'text/xml'));)`
                                   } else if (['responseText'].indexOf(item?.data?.source) > -1) {
                                     _vars_val = `_.get(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}.match(${variable?.expression}),1)`;
                                   } else if (['responseHeader', 'responseCookie'].indexOf(item?.data?.source) > -1) {
