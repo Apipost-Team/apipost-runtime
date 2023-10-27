@@ -753,10 +753,10 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                 }
 
                                 // 断言标题
-                                let _assert_title = `${ASSERT_TYPES[item?.data?.type]?.title}(${String(item?.data?.expression?.path)}) ${ASSERT_CONDITION[item?.data?.expression?.compareType]?.title} ${mySandbox.replaceIn(String(item?.data?.expression?.compareValue))}`;
+                                let _assert_title = `${ASSERT_TYPES[item?.data?.type]?.title}(${String(item?.data?.expression?.path).replace(/"/g, '\'')}) ${ASSERT_CONDITION[item?.data?.expression?.compareType]?.title} ${mySandbox.replaceIn(String(item?.data?.expression?.compareValue).replace(/"/g, '\''))}`;
 
                                 if (_.isEmpty(item?.data?.expression?.path)) {
-                                  _assert_title = `${ASSERT_TYPES[item?.data?.type]?.title} ${ASSERT_CONDITION[item?.data?.expression?.compareType]?.title} ${mySandbox.replaceIn(String(item?.data?.expression?.compareValue))}`;
+                                  _assert_title = `${ASSERT_TYPES[item?.data?.type]?.title} ${ASSERT_CONDITION[item?.data?.expression?.compareType]?.title} ${mySandbox.replaceIn(String(item?.data?.expression?.compareValue).replace(/"/g, '\''))}`;
                                 }
 
                                 let _assert_script = '';
