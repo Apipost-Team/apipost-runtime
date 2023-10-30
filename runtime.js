@@ -770,9 +770,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                   } else if (item?.data?.expression?.compareType == 'regularmatch') {
                                     _assert_value = `(${mySandbox.replaceIn(item?.data?.expression?.compareValue)})`;
                                   } else if (['belongscollection', 'notbelongscollection'].indexOf(item?.data?.expression?.compareType) > -1) {
+                                    _assert_func = 'String';
                                     _assert_value = `([${_.join(_.split(mySandbox.replaceIn(item?.data?.expression?.compareValue), ",").map(item => {
-                                      let num = _.toNumber(item);
-                                      return _.isNaN(num) ? `"${item}"` : num;
+                                      // let num = _.toNumber(item);
+                                      // return _.isNaN(num) ? `"${item}"` : num;
+                                      return `"${item}"`;
                                     }), ",")}])`;
                                   } else {
                                     _assert_func = 'String';
