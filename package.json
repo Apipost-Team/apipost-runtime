@@ -34,6 +34,7 @@
     "async": "^3.2.4",
     "atob": "^2.1.2",
     "atomic-sleep": "^1.0.0",
+    "apipost-mock": "^1.0.2",
     "btoa": "^1.2.1",
     "buffer": "^6.0.3",
     "chai": "^4.3.6",
@@ -69,7 +70,6 @@
   "peerDependencies": {
     "ajax-for-node": ">=1.0.12",
     "apipost-inside-tools": ">=0.1.10",
-    "apipost-mock": "^1.0.2",
     "apipost-send": "^0.0.45",
     "apipost-tools": ">=0.0.20",
     "art-template": ">=4.13.2",
