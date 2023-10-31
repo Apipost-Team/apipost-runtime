@@ -39,26 +39,26 @@ const sm2 = require('sm-crypto').sm2,
     tv4 = require('tv4'),
     Ajv = require('ajv'),
     xml2js = require('xml2js'),
-    xpath = require('xpath'),// for 7.2.3
-    dom = require('@xmldom/xmldom').DOMParser,// for 7.2.3
+    xpath = require('xpath'),
+    dom = require('@xmldom/xmldom').DOMParser,
     atob = require('atob'),
     btoa = require('btoa'),
-    { DatabaseQuery } = require('database-query'), // add for 7.2.2
-    { parse } = require('csv-parse'), // for 7.2.2
+    { DatabaseQuery } = require('database-query'),
+    { parse } = require('csv-parse'),
     { faker } = require('@faker-js/faker/locale/zh_CN'), //zh_CN/en
-    insideVariablesScopeInit = require('./sandbox/inside-variables-scope'),// for 7.2.2
-    pmRequestHeaders = require('./sandbox/pm-request-headers'),// for 7.2.2
-    pmRequestBody = require('./sandbox/pm-request-body'),// for 7.2.2
-    pmRequestUrl = require('./sandbox/pm-request-url'),// for 7.2.2
-    pmCookies = require('./sandbox/pm-cookies'),// for 7.2.2
+    insideVariablesScopeInit = require('./sandbox/inside-variables-scope'),
+    pmRequestHeaders = require('./sandbox/pm-request-headers'),
+    pmRequestBody = require('./sandbox/pm-request-body'),
+    pmRequestUrl = require('./sandbox/pm-request-url'),
+    pmCookies = require('./sandbox/pm-cookies'),
     { emitAssertResult,
         emitTargetPara,
-        emitVisualizerHtml } = require('./sandbox/utils'),// for 7.2.2
+        emitVisualizerHtml } = require('./sandbox/utils'),
     {
         getCollectionServerId,
         cliConsole,
         arrayPrototypeExtend
-    } = require('./utils');// for 7.2.2
+    } = require('./utils');
 
 const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
     // 1.初始化变量替换所需的参数和函数
@@ -178,7 +178,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
             toObject() {
                 return getAllDynamicVariables();
             },
-            toJSON() { // for 7.2.2
+            toJSON() {
                 return getAllDynamicVariables();
             },
         },
@@ -204,7 +204,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
             toObject() {
                 return variablesScope.iterationData;
             },
-            toJSON() { // for 7.2.2
+            toJSON() {
                 return variablesScope.iterationData;
             },
             clear() {
@@ -638,6 +638,11 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                                     let method = _.get(extra, 'method')
 
                                     if (_.isString(className) && _.isString(method)) {
+                                        let resourcesPath = _.get(process, 'resourcesPath');
+
+                                        if (!_.isString(resourcesPath)) {
+                                            resourcesPath = '';
+                                        }
                                         let jarPath = path.join(path.resolve(resourcesPath), `app`, `jar-main-1.0-SNAPSHOT.jar`);
                                         let para = new Buffer(JSON.stringify({ "methodName": method, "args": args })).toString('base64');
                                         command = `java -jar ${jarPath}  ${file} ${className} '${para}'`
@@ -793,8 +798,8 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                     sm4,
                     xpath,
                     dom,
-                    DatabaseQuery, // for 7.2.2
-                    csvParse: parse, // for 7.2.2
+                    DatabaseQuery,
+                    csvParse: parse,
                     csv2array: csv2json,
                     mysql,
                     mssql, ClickHouse, pgClient,
