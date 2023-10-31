@@ -22,9 +22,9 @@ const apipostRequest = require('apipost-send'),
     getParentTargetIDs,
     getItemFromCollection,
     getInitDefinitionsParentIDs
-  } = require('./libs/utils'),// for 7.2.2
+  } = require('./libs/utils'),
   Sandbox = require('./libs/sandbox'),
-  Collection = require('./libs/collection');// for 7.2.2
+  Collection = require('./libs/collection');
 
 /*
 @emitRuntimeEvent:请求脚本参数
@@ -560,13 +560,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   _requestBody = null;
                 }
 
-                // for 7.2.2
-                let para_arrays = ['header', 'body', 'query', 'auth', 'pre_script', 'pre_tasks', 'post_tasks', 'test', 'resful'];
+                let para_arrays = ['header', 'body', 'query', 'auth', 'pre_script', 'test', 'resful', 'pre_tasks', 'post_tasks'];
 
                 for (let _j = 0; _j < para_arrays.length; _j++) {
                   let _type = para_arrays[_j];
 
-                  // 参数 7.2.2 add  'pre_tasks', 'post_tasks'
                   if (_.indexOf(['header', 'body', 'query', 'resful'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = _type == 'header' ? {} : [];
@@ -690,6 +688,12 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                       connectionConfigs = {};
                     }
 
+                    // 前置脚本还是后置脚本
+                    if (_requestPara[_type] == '') {
+                      let _script_type = _type == 'pre_tasks' ? 'pre_script' : 'test';
+                      _requestPara[_type] = `${_requestPara[_script_type]}`
+                    }
+
                     if (_.has(definition, `request.request.${_type}`) && _.isArray(definition?.request?.request[_type])) {
                       for (let _i = 0; _i < definition?.request?.request[_type].length; _i++) {
                         let item = definition?.request?.request[_type][_i];
@@ -721,6 +725,197 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                   }
                                 } catch (e) {
                                   _requestPara[_type] = `${_requestPara[_type]}\r\nconsole.log("${e?.result}");`
+                                }
+                              }
+                              break;
+                            case 'assert': // 断言
+                              if (item?.enabled > 0) {
+                                const ASSERT_TYPES = {
+                                  responseJson: {
+                                    value: 'pm.response.json()',
+                                    title: 'Response JSON',
+                                  },
+                                  responseXml: {
+                                    value: 'Buffer.from(apt.response.base64Body.split(",")[1], "base64").toString("utf8")',
+                                    title: 'Response XML',
+                                  },
+                                  responseText: {
+                                    value: 'apt.response.text()',
+                                    title: 'Response Text',
+                                  },
+                                  responseHeader: {
+                                    value: 'pm.response.resHeaders',
+                                    title: 'Response Header',
+                                  },
+                                  responseCookie: {
+                                    value: 'pm.response.cookies',
+                                    title: 'Response Cookie',
+                                  },
+                                  responseCode: {
+                                    value: 'pm.response.code',
+                                    title: '响应码',
+                                  },
+                                  responseTime: {
+                                    value: 'pm.response.responseTime',
+                                    title: '响应时间',
+                                  },
+                                  responseSize: {
+                                    value: 'pm.response.responseSize',
+                                    title: '响应大小',
+                                  },
+                                  tempVars: {
+                                    value: 'variables',
+                                    title: '临时变量',
+                                  },
+                                  envVars: {
+                                    value: 'environment',
+                                    title: '环境变量',
+                                  },
+                                  globalVars: {
+                                    value: 'globals',
+                                    title: '全局变量',
+                                  },
+                                };
+
+                                const ASSERT_CONDITION = {
+                                  eq: { type: 'eql', title: '等于' },
+                                  uneq: { type: 'not.eql', title: '不等于' },
+                                  lt: { type: 'below', title: '小于' },
+                                  lte: { type: 'most', title: '小于或等于' },
+                                  gt: { type: 'above', title: '大于' },
+                                  gte: { type: 'least', title: '大于或等于' },
+                                  includes: { type: 'include', title: '包含' },
+                                  unincludes: { type: 'not.include', title: '不包含' },
+                                  null: { type: 'be.empty', title: '等于空' },
+                                  notnull: { type: 'not.be.empty', title: '不等于空' },
+                                  exist: { type: 'exists', title: '存在' },
+                                  notexist: { type: 'not.exists', title: '不存在' },
+                                  regularmatch: { type: 'match', title: '正则匹配' },
+                                  belongscollection: { type: 'oneOf', title: '属于集合' },
+                                  notbelongscollection: { type: 'not.oneOf', title: '不属于集合' },
+                                }
+
+                                // 断言标题
+                                let _assert_title = `${ASSERT_TYPES[item?.data?.type]?.title}(${String(item?.data?.expression?.path).replace(/"/g, '\'')}) ${ASSERT_CONDITION[item?.data?.expression?.compareType]?.title} ${mySandbox.replaceIn(String(item?.data?.expression?.compareValue).replace(/"/g, '\''))}`;
+
+                                if (_.isEmpty(item?.data?.expression?.path)) {
+                                  _assert_title = `${ASSERT_TYPES[item?.data?.type]?.title} ${ASSERT_CONDITION[item?.data?.expression?.compareType]?.title} ${mySandbox.replaceIn(String(item?.data?.expression?.compareValue).replace(/"/g, '\''))}`;
+                                }
+
+                                let _assert_script = '';
+                                let _assert_value = '';
+                                let _assert_func = '_.identity';
+
+                                if (['null', 'notnull', 'exist', 'notexist'].indexOf(item?.data?.expression?.compareType) == -1) {
+                                  if (['lt', 'lte', 'gt', 'gte'].indexOf(item?.data?.expression?.compareType) > -1) {
+                                    _assert_func = 'Number';
+                                    _assert_value = `(Number("${mySandbox.replaceIn(item?.data?.expression?.compareValue)}"))`;
+                                  } else if (item?.data?.expression?.compareType == 'regularmatch') {
+                                    _assert_value = `(${mySandbox.replaceIn(item?.data?.expression?.compareValue)})`;
+                                  } else if (['belongscollection', 'notbelongscollection'].indexOf(item?.data?.expression?.compareType) > -1) {
+                                    _assert_func = 'String';
+                                    _assert_value = `([${_.join(_.split(mySandbox.replaceIn(item?.data?.expression?.compareValue), ",").map(item => {
+                                      // let num = _.toNumber(item);
+                                      // return _.isNaN(num) ? `"${item}"` : num;
+                                      return `"${item}"`;
+                                    }), ",")}])`;
+                                  } else {
+                                    _assert_func = 'String';
+                                    _assert_value = `("${mySandbox.replaceIn(item?.data?.expression?.compareValue)}")`;
+                                  }
+                                }
+
+
+                                if (['tempVars', 'envVars', 'globalVars'].indexOf(item?.data?.type) > -1) {
+                                  _assert_script = `apt.test("${_assert_title}", () => {
+                                      apt.expect(${_assert_func}(apt.${ASSERT_TYPES[item?.data?.type]?.value}.get(${JSON.stringify(item?.data?.expression?.path)}))).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
+                                  });`
+                                } else if (['responseText', 'responseCode', 'responseTime', 'responseSize'].indexOf(item?.data?.type) > -1) {
+                                  _assert_script = `apt.test("${_assert_title}", () => {
+                                      apt.expect(${_assert_func}(${ASSERT_TYPES[item?.data?.type]?.value})).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
+                                  });`
+                                } else if (['responseHeader', 'responseCookie'].indexOf(item?.data?.type) > -1) {
+                                  _assert_script = `apt.test("${_assert_title}", () => {
+                                      apt.expect(${_assert_func}(_.get(${ASSERT_TYPES[item?.data?.type]?.value}, ${JSON.stringify(item?.data?.expression?.path)}))).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
+                                  });`
+                                } else if (['responseJson'].indexOf(item?.data?.type) > -1) {
+                                  _assert_script = `apt.test("${_assert_title}", () => {
+                                      apt.expect(${_assert_func}(jsonpath.value(${ASSERT_TYPES[item?.data?.type]?.value}, ${JSON.stringify(item?.data?.expression?.path)}))).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
+                                  });`
+                                } else if (['responseXml'].indexOf(item?.data?.type) > -1) {
+                                  _assert_script = `apt.test("${_assert_title}", () => {
+                                      var nodes = xpath.select(${JSON.stringify(item?.data?.expression?.path)}, new dom().parseFromString(${ASSERT_TYPES[item?.data?.type]?.value}, 'text/xml'));
+                                      apt.expect(${_assert_func}(nodes)).to.${ASSERT_CONDITION[item?.data?.expression?.compareType]?.type}${_assert_value};
+                                  });`
+                                }
+
+                                _requestPara[_type] = `${_requestPara[_type]}\r\n${_assert_script}`;
+                              }
+                              break;
+                            case 'pickvars':// 可视化定义变量
+                              if (item?.enabled > 0) {
+                                const VARS_VALUE_TYPES = {
+                                  responseJson: {
+                                    value: 'pm.response.json()',
+                                    title: 'Response JSON',
+                                  },
+                                  responseXml: {
+                                    value: 'Buffer.from(apt.response.base64Body.split(",")[1], "base64").toString("utf8")',
+                                    title: 'Response XML',
+                                  },
+                                  responseText: {
+                                    value: 'apt.response.text()',
+                                    title: 'Response Text',
+                                  },
+                                  responseHeader: {
+                                    value: 'pm.response.resHeaders',
+                                    title: 'Response Header',
+                                  },
+                                  responseCookie: {
+                                    value: 'pm.response.cookies',
+                                    title: 'Response Cookie',
+                                  },
+                                  responseCode: {
+                                    value: 'pm.response.code',
+                                    title: '响应码',
+                                  },
+                                  responseTime: {
+                                    value: 'pm.response.responseTime',
+                                    title: '响应时间',
+                                  },
+                                  responseSize: {
+                                    value: 'pm.response.responseSize',
+                                    title: '响应大小',
+                                  }
+                                };
+
+                                const VARS_TYPES = {
+                                  tempVars: "variables",
+                                  envVars: "environment",
+                                  globalVars: "globals"
+                                }
+
+                                let _vars_script = '';
+
+                                _.forEach(item?.data?.variables, (variable) => {
+                                  let _vars_val = ''
+                                  if (['responseJson'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = `jsonpath.value(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}, ${JSON.stringify(variable?.expression)})`
+                                  } else if (['responseXml'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = `xpath.select(${JSON.stringify(variable?.expression)}, new dom().parseFromString(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}, 'text/xml'))`
+                                  } else if (['responseText'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = `_.get(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}.match(${variable?.expression}),1)`;
+                                  } else if (['responseHeader', 'responseCookie'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = `_.get(${_.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`)}, ${JSON.stringify(variable?.expression)})`
+                                  } else if (['responseCode', 'responseTime', 'responseSize'].indexOf(item?.data?.source) > -1) {
+                                    _vars_val = _.get(VARS_VALUE_TYPES, `${item?.data?.source}.value`);
+                                  }
+
+                                  _vars_script = `\r\n${_vars_script}\r\napt.${VARS_TYPES[variable?.type]}.set("${variable?.name}", ${_vars_val});\r\n`;
+                                });
+
+                                if (_vars_script != '') {
+                                  _requestPara[_type] = `${_requestPara[_type]}\r\n${_vars_script}`;
                                 }
                               }
                               break;
@@ -877,7 +1072,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 // 执行预执行脚本
                 _.set(definition, 'script_request', _request_para); // fix bug
 
-                // for 7.2.2
+
                 let _pre_script = '';
 
                 if (_.has(_requestPara, 'pre_tasks') && _.isString(_requestPara.pre_tasks) && !_.isEmpty(_requestPara.pre_tasks)) {
@@ -886,14 +1081,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   _pre_script = _requestPara.pre_script;
                 }
 
-                await mySandbox.execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, option, _pre_script, _.assign(definition, { jar: cookies }), 'pre_script', (err, res, jar, scope) => { // for 7.2.2
+                await mySandbox.execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, option, _pre_script, _.assign(definition, { jar: cookies }), 'pre_script', (err, res, jar, scope) => {
                   cookies = jar;// for 7.2.0
                   if (err && ignoreError < 1) {
                     stop(RUNNER_REPORT_ID, String(err));
                   }
 
                   if (_.isString(scope?.script_request?.updateurl)) {
-                    _.set(definition.request, 'updateurl', scope?.script_request?.updateurl) // for 7.2.2
+                    _.set(definition.request, 'updateurl', scope?.script_request?.updateurl)
                   }
                 });
 
@@ -1195,7 +1390,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   } catch (e) { }
                 }
 
-                // for 7.2.2
+
                 if (_.isString(_request?.updateurl)) {
                   _.set(_request, 'url', _request?.updateurl);
                   _.set(_request, 'request.url', _request?.updateurl);
@@ -1339,7 +1534,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 }
 
                 // 执行后执行脚本
-                // for 7.2.2
+
                 let _test_script = '';
 
                 if (_.has(_requestPara, 'post_tasks') && _.isString(_requestPara.post_tasks) && !_.isEmpty(_requestPara.post_tasks)) {
