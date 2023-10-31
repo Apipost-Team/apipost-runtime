@@ -39,26 +39,26 @@ const sm2 = require('sm-crypto').sm2,
     tv4 = require('tv4'),
     Ajv = require('ajv'),
     xml2js = require('xml2js'),
-    xpath = require('xpath'),
-    dom = require('@xmldom/xmldom').DOMParser,
+    xpath = require('xpath'),// for 7.2.3
+    dom = require('@xmldom/xmldom').DOMParser,// for 7.2.3
     atob = require('atob'),
     btoa = require('btoa'),
-    { DatabaseQuery } = require('database-query'),
-    { parse } = require('csv-parse'), 
+    { DatabaseQuery } = require('database-query'), // add for 7.2.2
+    { parse } = require('csv-parse'), // for 7.2.2
     { faker } = require('@faker-js/faker/locale/zh_CN'), //zh_CN/en
-    insideVariablesScopeInit = require('./sandbox/inside-variables-scope'),
-    pmRequestHeaders = require('./sandbox/pm-request-headers'),
-    pmRequestBody = require('./sandbox/pm-request-body'),
-    pmRequestUrl = require('./sandbox/pm-request-url'),
-    pmCookies = require('./sandbox/pm-cookies'),
+    insideVariablesScopeInit = require('./sandbox/inside-variables-scope'),// for 7.2.2
+    pmRequestHeaders = require('./sandbox/pm-request-headers'),// for 7.2.2
+    pmRequestBody = require('./sandbox/pm-request-body'),// for 7.2.2
+    pmRequestUrl = require('./sandbox/pm-request-url'),// for 7.2.2
+    pmCookies = require('./sandbox/pm-cookies'),// for 7.2.2
     { emitAssertResult,
         emitTargetPara,
-        emitVisualizerHtml } = require('./sandbox/utils'),
+        emitVisualizerHtml } = require('./sandbox/utils'),// for 7.2.2
     {
         getCollectionServerId,
         cliConsole,
         arrayPrototypeExtend
-    } = require('./utils');
+    } = require('./utils');// for 7.2.2
 
 const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
     // 1.初始化变量替换所需的参数和函数
@@ -178,7 +178,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
             toObject() {
                 return getAllDynamicVariables();
             },
-            toJSON() { 
+            toJSON() { // for 7.2.2
                 return getAllDynamicVariables();
             },
         },
@@ -204,7 +204,7 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
             toObject() {
                 return variablesScope.iterationData;
             },
-            toJSON() { 
+            toJSON() { // for 7.2.2
                 return variablesScope.iterationData;
             },
             clear() {
@@ -360,12 +360,6 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                 switch (key) {
                     case 'request':
                         if (_.has(scope, 'script_request') && _.isObject(scope.script_request)) {
-                            Object.defineProperty(scope.script_request, 'to', {
-                                get() {
-                                    return chai.expect(this).to;
-                                },
-                            });
-
                             let pm_request = _.assign(_.cloneDeep(scope.script_request), {
                                 headers: pmRequestHeaders(scope, pm),
                                 method: scope.script_request?.method,
@@ -374,6 +368,12 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                             })
 
                             arrayPrototypeExtend(pm_request);
+
+                            Object.defineProperty(pm_request, 'to', {
+                                get() {
+                                    return chai.expect(this).to;
+                                },
+                            });
 
                             Object.defineProperty(pm, key, {
                                 configurable: true,
@@ -429,13 +429,6 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                                     },
                                 });
                             }
-
-                            Object.defineProperty(scope.response.data[key], 'to', {
-                                get() {
-                                    return chai.expect(this).to;
-                                },
-                            });
-
                             let _pm_response = _.cloneDeep(scope.response.data[key]);
 
                             Object.defineProperty(_pm_response, 'headers', {
@@ -445,6 +438,12 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                             });
 
                             arrayPrototypeExtend(_pm_response);
+
+                            Object.defineProperty(_pm_response, 'to', {
+                                get() {
+                                    return chai.expect(this).to;
+                                },
+                            });
 
                             Object.defineProperty(pm, key, {
                                 configurable: true,
@@ -617,11 +616,6 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                             } else {
                                 file = path.join(path.resolve(ASideTools.getCachePath()), `apipost`, 'ExternalPrograms', file);
                             }
-                        }
-                        let resourcesPath = _.get(process, 'resourcesPath');
-
-                        if(!_.isString(resourcesPath)){
-                            resourcesPath = '';
                         }
 
                         let command = ``;
@@ -799,8 +793,8 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
                     sm4,
                     xpath,
                     dom,
-                    DatabaseQuery, 
-                    csvParse: parse, 
+                    DatabaseQuery, // for 7.2.2
+                    csvParse: parse, // for 7.2.2
                     csv2array: csv2json,
                     mysql,
                     mssql, ClickHouse, pgClient,

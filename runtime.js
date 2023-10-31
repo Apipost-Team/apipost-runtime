@@ -22,9 +22,9 @@ const apipostRequest = require('apipost-send'),
     getParentTargetIDs,
     getItemFromCollection,
     getInitDefinitionsParentIDs
-  } = require('./libs/utils'),// for 7.2.2
+  } = require('./libs/utils'),
   Sandbox = require('./libs/sandbox'),
-  Collection = require('./libs/collection');// for 7.2.2
+  Collection = require('./libs/collection');
 
 /*
 @emitRuntimeEvent:请求脚本参数
@@ -515,13 +515,11 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   _requestBody = null;
                 }
 
-                // for 7.2.2
-                let para_arrays = ['header', 'body', 'query', 'auth', 'pre_script', 'pre_tasks', 'post_tasks', 'test', 'resful'];
+                let para_arrays = ['header', 'body', 'query', 'auth', 'pre_script', 'test', 'resful', 'pre_tasks', 'post_tasks'];
 
                 for (let _j = 0; _j < para_arrays.length; _j++) {
                   let _type = para_arrays[_j];
 
-                  // 参数 7.2.2 add  'pre_tasks', 'post_tasks'
                   if (_.indexOf(['header', 'body', 'query', 'resful'], _type) > -1) {
                     if (typeof _requestPara[_type] === 'undefined') {
                       _requestPara[_type] = _type == 'header' ? {} : [];
@@ -1029,7 +1027,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 // 执行预执行脚本
                 _.set(definition, 'script_request', _request_para); // fix bug
 
-                // for 7.2.2
+
                 let _pre_script = '';
 
                 if (_.has(_requestPara, 'pre_tasks') && _.isString(_requestPara.pre_tasks) && !_.isEmpty(_requestPara.pre_tasks)) {
@@ -1038,14 +1036,14 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   _pre_script = _requestPara.pre_script;
                 }
 
-                await mySandbox.execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, option, _pre_script, _.assign(definition, { jar: cookies }), 'pre_script', (err, res, jar, scope) => { // for 7.2.2
+                await mySandbox.execute(RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, option, _pre_script, _.assign(definition, { jar: cookies }), 'pre_script', (err, res, jar, scope) => {
                   cookies = jar;// for 7.2.0
                   if (err && ignoreError < 1) {
                     stop(RUNNER_REPORT_ID, String(err));
                   }
 
                   if (_.isString(scope?.script_request?.updateurl)) {
-                    _.set(definition.request, 'updateurl', scope?.script_request?.updateurl) // for 7.2.2
+                    _.set(definition.request, 'updateurl', scope?.script_request?.updateurl)
                   }
                 });
 
@@ -1347,7 +1345,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                   } catch (e) { }
                 }
 
-                // for 7.2.2
+
                 if (_.isString(_request?.updateurl)) {
                   _.set(_request, 'url', _request?.updateurl);
                   _.set(_request, 'request.url', _request?.updateurl);
@@ -1491,7 +1489,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                 }
 
                 // 执行后执行脚本
-                // for 7.2.2
+
                 let _test_script = '';
 
                 if (_.has(_requestPara, 'post_tasks') && _.isString(_requestPara.post_tasks) && !_.isEmpty(_requestPara.post_tasks)) {
