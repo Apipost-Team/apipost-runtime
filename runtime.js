@@ -689,31 +689,6 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                     ${db_set_script}
                                   } catch (e) { console.log(JSON.stringify(e)) }`;
                                 } catch (e) { }
-
-                                // try {
-                                //   let _db_res = await DatabaseQuery(connectionConfigs[item.data?.connectionId], mySandbox.replaceIn(item.data?.query)); // fix 执行语句没有进行变量替换的bug
-
-                                //   if (Number(item.data?.isConsoleOutput) > 0) {
-                                //     _requestPara[_type] = `${_requestPara[_type]}\r\nconsole.log(${JSON.stringify(_db_res?.result)});`
-                                //   }
-
-                                //   if (_.isArray(item.data?.variables)) {
-                                //     _.forEach(item.data?.variables, function (vars) {
-
-                                //       let _var_val = '';
-
-                                //       if (_.isObject(_db_res?.result)) {
-                                //         _var_val = jsonpath.value(_db_res?.result, vars.pattern ? vars.pattern : '$');
-                                //       } else {
-                                //         _var_val = _db_res?.result;
-                                //       }
-
-                                //       _requestPara[_type] = `${_requestPara[_type]}\r\npm.${vars.type}.set("${vars.name}",${JSON.stringify(_var_val)});`
-                                //     });
-                                //   }
-                                // } catch (e) {
-                                //   _requestPara[_type] = `${_requestPara[_type]}\r\nconsole.log("${e?.result}");`
-                                // }
                               }
                               break;
                             case 'assert': // 断言
