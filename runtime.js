@@ -717,8 +717,13 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                   if (_.isArray(item.data?.variables)) {
                                     _.forEach(item.data?.variables, function (vars) {
                                       let let_roadom = _.random(10, 1000000);
+                                      let let_pattern = '$';
+
+                                      if(vars.pattern){
+                                        let_pattern = vars.pattern;
+                                      }
                                       let _var_val_script = `\r\nlet _var_val_${let_roadom}='';\r\nif (_.isObject(db_result_${roadom}?.result)) {
-                                        _var_val_${let_roadom} = jsonpath.value(db_result_${roadom}?.result, ${vars.pattern} ? ${vars.pattern} : '$');
+                                        _var_val_${let_roadom} = jsonpath.value(db_result_${roadom}?.result, "${let_pattern}"});
                                       } else {
                                         _var_val_${let_roadom} = db_result_${roadom}?.result;
                                       }`
