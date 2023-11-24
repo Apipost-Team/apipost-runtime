@@ -728,7 +728,7 @@ const Runtime = function ApipostRuntime(emitRuntimeEvent, enableUnSafeShell = tr
                                         _var_val_${let_roadom} = db_result_${roadom}?.result;
                                       }`
 
-                                      db_set_script = `\r\n${db_set_script}\r\n${_var_val_script}\r\npm.${vars.type}.set("${vars.name}",JSON.stringify(_var_val_${let_roadom}));`
+                                      db_set_script = `\r\n${db_set_script}\r\n${_var_val_script}\r\npm.${vars.type}.set("${vars.name}",_var_val_${let_roadom});`
                                     });
                                   }
 
