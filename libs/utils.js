@@ -40,6 +40,11 @@ const isCliMode = function (iscli) {
         return iscli
     } else {
         try {
+            //通过判断环境变量来判断是否是cli模式
+            if (process.env['IS_CLI']){
+                return true;
+            }
+
             if (process.stdin.isTTY) {
                 const commandName = process.argv[2];
                 if (commandName == 'run') {
