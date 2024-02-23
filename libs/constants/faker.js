@@ -108,7 +108,7 @@ const { sample } = require('lodash'),
         $randomPhoneNumber: {
             description: 'A random 10-digit phone number',
             generator() {
-                return faker.phone.phoneNumberFormat(0);
+                return faker.phone.number();
             },
         },
 
@@ -117,7 +117,7 @@ const { sample } = require('lodash'),
         $randomPhoneNumberExt: {
             description: 'A random phone number with extension (12 digits)',
             generator() {
-                return `${faker.datatype.number({ min: 1, max: 99 })}-${faker.phone.phoneNumberFormat(0)}`;
+                return `${faker.datatype.number({ min: 1, max: 99 })}-${faker.phone.number()}`;
             },
         },
 
@@ -170,7 +170,7 @@ const { sample } = require('lodash'),
         },
         $randomStreetName: {
             description: 'A random street name',
-            generator: faker.address.streetName,
+            generator: faker.address.street,
         },
         $randomStreetAddress: {
             description: 'A random street address (e.g. 1234 Main Street)',
@@ -195,7 +195,7 @@ const { sample } = require('lodash'),
 
         $randomColor: {
             description: 'A random color',
-            generator: faker.commerce.color,
+            generator: faker.color.human,
         },
         $randomDepartment: {
             description: 'A random commerce category (e.g. electronics, clothing)',
@@ -220,7 +220,7 @@ const { sample } = require('lodash'),
 
         $randomCompanyName: {
             description: 'A random company name',
-            generator: faker.company.companyName,
+            generator: faker.company.name,
         },
         $randomCompanySuffix: {
             description: 'A random company suffix (e.g. Inc, LLC, Group)',
@@ -532,7 +532,7 @@ const { sample } = require('lodash'),
         },
         $randomFullName: {
             description: 'A random first and last name',
-            generator: faker.name.findName,
+            generator: faker.name.fullName,
         },
         $randomJobTitle: {
             description: 'A random job title (e.g. senior software developer)',

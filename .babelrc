@@ -1,9 +1,13 @@
 {
   "presets": [
-      ["latest", {
-          "es2015": {
-              "modules": false
-          }
-      }]
+    ["@babel/preset-env", { "targets": { "node": "current" } }]
+    // [
+    //   "latest",
+    //   {
+    //     "es2015": {
+    //       "modules": false
+    //     }
+    //   }
+    // ]
   ]
 }

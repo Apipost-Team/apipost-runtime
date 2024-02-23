@@ -4,14 +4,15 @@
   </a>
 </p>
 
-# 🚀 apipost-runtime
+# 🚀 apipost-runtime8
 
-apipost-runtime 支持单接口http请求、自动化测试。其支持的选项含义可参考下方的demo注释。
+apipost-runtime8 支持单接口http请求、自动化测试。其支持的选项含义可参考下方的demo注释。
+为apipost8准备
 
 ## Install
 
 ```
-$ npm install apipost-runtime
+$ npm install apipost-runtime8
 ```
 
 ##  Usage
@@ -54,7 +55,7 @@ let myRuntime = new Runtime();
 myRuntime.run(myCollection.definition, {
     project: {
         request: {
-            "header": [
+            "header": {"parameter":[
                 {
                     "is_checked": "1",
                     "type": "Text",
@@ -62,8 +63,8 @@ myRuntime.run(myCollection.definition, {
                     "value": "{{age}}",
                     "description": ""
                 }
-            ],
-            "query": [
+            ]},
+            "query": {"parameter":[
                 {
                     "is_checked": "1",
                     "type": "Text",
@@ -71,8 +72,8 @@ myRuntime.run(myCollection.definition, {
                     "value": "",
                     "description": ""
                 }
-            ],
-            "body": [
+            ]},
+            "body": {"parameter":[
                 {
                     "is_checked": "1",
                     "type": "Text",
@@ -80,7 +81,7 @@ myRuntime.run(myCollection.definition, {
                     "value": "",
                     "description": ""
                 }
-            ],
+            ]},
             "auth": {
                 "type": "noauth",
                 "kv": {
@@ -98,9 +99,9 @@ myRuntime.run(myCollection.definition, {
         },
         "script": {
             "pre_script_switch": true,
-            "test_switch": true,
+            "post_script_switch": true,
             "pre_script": `pm.globals.set("age", '12');`,
-            "test": `//apt.assert('response.raw.responseText==\"test\"');`
+            "post_script": `//apt.assert('response.raw.responseText==\"test\"');`
         }
     }, // 全局参数
     collection: [target1, target2, target3], // 当前流程所需的接口以及父目录集合
@@ -114,11 +115,14 @@ myRuntime.run(myCollection.definition, {
         uuid: 'bcad1d6f-7a6c-4a60-a2fc-d59c9ad11d82',
         nick_name: 'Apipost'
     },
-    env_name: '默认环境', // 当前环境名称
-    env_pre_url: 'http://echo.apipost.cn', // 当前环境URL前缀
-    environment: {
-        "title": "我是标题"
-    }, // 当前环境变量
+    env: {
+        "env_id": "225e305cd401000",
+        "env_name": "新建环境",
+        "env_pre_url": "",
+        environment: {
+            "title": "我是标题"
+        }
+    }, 
     globals: {
         "address": "我是地址"
     }, // 当前公共变量
