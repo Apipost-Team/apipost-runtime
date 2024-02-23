@@ -608,6 +608,10 @@ const Runtime = function ApipostRuntime(
       database_configs,
     } = option2;
 
+    if (_.isEmpty(RUNNER_REPORT_ID)){
+      RUNNER_REPORT_ID = aTools.snowflakeId("runtime");
+    }
+
     if (!_.isObject(env)) {
       return_msg = "env 参数必须是一个对象";
       throw new Error(return_msg);
@@ -794,7 +798,7 @@ const Runtime = function ApipostRuntime(
                   (err, res, jar, scope) => {
                     cookies = jar;
 
-                    if (err && ignoreError < 1) {
+                    if (err && ignore_error < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
                     }
                   }
@@ -1136,17 +1140,17 @@ const Runtime = function ApipostRuntime(
                                       }
                                     );
                                   }
-
+                                  let query_escaped = item.data?.query.replace(/"/g, '\\"') || "";
                                   _requestPara[_type] = `${
                                     _requestPara[_type]
                                   }\r\ntry {
                                     console.log("Query:" + apt.variables.replaceIn("${
-                                      item.data?.query
+                                      query_escaped
                                     }"))
                                     let db_result_${roadom} = await DatabaseQuery(${JSON.stringify(
                                     database_configs[item.data?.connectionId]
                                   )}, apt.variables.replaceIn("${
-                                    item.data?.query
+                                    query_escaped
                                   }"));
                                     ${db_console_script}
                                     ${db_set_script}
@@ -1809,7 +1813,7 @@ const Runtime = function ApipostRuntime(
                   "pre_script",
                   (err, res, jar, scope) => {
                     cookies = jar; // for 7.2.0
-                    if (err && ignoreError < 1) {
+                    if (err && ignore_error < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
                     }
 
@@ -2569,7 +2573,7 @@ const Runtime = function ApipostRuntime(
                   "test",
                   (err, exec_res, jar) => {
                     cookies = jar; // 7.2.0
-                    if (err && ignoreError < 1) {
+                    if (err && ignore_error < 1) {
                       stop(RUNNER_REPORT_ID, String(err));
                     } else if (
                       _.has(exec_res, "raw.responseText") &&

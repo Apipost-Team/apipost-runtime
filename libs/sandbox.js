@@ -837,10 +837,14 @@ const Sandbox = function (emitRuntimeEvent, enableUnSafeShell) {
             })).run(new vm2.VMScript(code));
             typeof callback === 'function' && callback(null, pm.response, scope?.jar, scope);  // 7.2.0
         } catch (err) {
+            let more_info = "";
+            if (err.stack && typeof err.stack === 'string') {
+                more_info = err.stack.split('\n').slice(0, 2).join('\t');
+            }
             emitTargetPara(RUNNER_RESULT_LOG, {
                 action: 'SCRIPT_ERROR',
                 eventName,
-                data: `${eventName == 'pre_script' ? '预执行' : '后执行'}脚本语法错误: ${err.toString()}`,
+                data: `${eventName == 'pre_script' ? '预执行' : '后执行'}脚本语法错误: ${err.toString()}:${more_info}`,
             }, scope);
             typeof callback === 'function' && callback(err.toString(), {}, scope?.jar, scope);
         }
