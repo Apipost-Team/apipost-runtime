@@ -558,7 +558,7 @@ const Runtime = function ApipostRuntime(
      * @property {SystemConfigurationDef} system_configs - 请求系统配置
      * @property {Object.<string, DBConfigDef>} db_config - 数据库配置
      * @property {string} scene - 场景,可选范围 http_request
-     * 
+     *
      * @property {Array<Object>} iterationData - 当前迭代的excel导入数据
      * @property {number} iterationCount - 当前迭代次数
      * @property {number} ignore_error - 遇到错误忽略,默认值1
@@ -582,7 +582,7 @@ const Runtime = function ApipostRuntime(
         sleep: 0, // 每个任务的间隔时间
         enable_sandbox: -1, // 是否开启沙盒
         system_configs: {}, // 发送模块的 options
-        scene:"auto_test", //默认时自动化策划师
+        scene: "auto_test", //默认时自动化策划师
       },
       option
     );
@@ -608,7 +608,7 @@ const Runtime = function ApipostRuntime(
       database_configs,
     } = option2;
 
-    if (!_.isObject(env)){
+    if (!_.isObject(env)) {
       return_msg = "env 参数必须是一个对象";
       throw new Error(return_msg);
     }
@@ -623,17 +623,24 @@ const Runtime = function ApipostRuntime(
       }
 
       // 设置sandbox的 environment变量 和 globals 变量
-      if (_.isObject(environment) &&  _.isObject(mySandbox.dynamicVariables['environment']) && _.isFunction(mySandbox.dynamicVariables['environment'].set)) {
+      if (
+        _.isObject(environment) &&
+        _.isObject(mySandbox.dynamicVariables["environment"]) &&
+        _.isFunction(mySandbox.dynamicVariables["environment"].set)
+      ) {
         for (const [key, value] of Object.entries(environment)) {
           mySandbox.dynamicVariables.environment.set(key, value, false);
         }
       }
-      if (_.isObject(globals) && _.isObject(mySandbox.dynamicVariables['globals']) && _.isFunction(mySandbox.dynamicVariables['globals'].set)) {
+      if (
+        _.isObject(globals) &&
+        _.isObject(mySandbox.dynamicVariables["globals"]) &&
+        _.isFunction(mySandbox.dynamicVariables["globals"].set)
+      ) {
         for (const [key, value] of Object.entries(globals)) {
           mySandbox.dynamicVariables.globals.set(key, value, false);
         }
       }
-
 
       runInit();
       RUNNER_STOP[RUNNER_REPORT_ID] = 0;
@@ -645,7 +652,7 @@ const Runtime = function ApipostRuntime(
       initDefinitions = definitions;
 
       if (RUNNER_TOTAL_COUNT <= 0) {
-        return_msg  = "执行次数小于1，无需执行";
+        return_msg = "执行次数小于1，无需执行";
 
         return return_msg;
       }
@@ -653,15 +660,14 @@ const Runtime = function ApipostRuntime(
       RUNNER_RESULT_LOG =
         definitions =
         option =
-        option2 = 
+        option2 =
         collection =
         initDefinitions =
           null;
-      
-          return_msg = "任务已停止";
+
+      return_msg = "任务已停止";
       return return_msg;
     }
-
 
     // 兼容 单接口请求 和 自动化测试
     if (!uuid.validate(combined_id)) {
@@ -670,7 +676,7 @@ const Runtime = function ApipostRuntime(
 
     if (!_.isObject(test_events)) {
       test_events = {
-        test_id: uuid.v4(),
+        test_id: aTools.snowflakeId("runtime"),
         name: "未命名",
       };
     }
@@ -705,10 +711,13 @@ const Runtime = function ApipostRuntime(
     }
 
     // 自动替换 Mock
-    const AUTO_CONVERT_FIELD_2_MOCK = system_configs?.AUTO_CONVERT_FIELD_2_MOCK > 0;
+    const AUTO_CONVERT_FIELD_2_MOCK =
+      system_configs?.AUTO_CONVERT_FIELD_2_MOCK > 0;
 
     // 发送对象
-    const request = new apipostRequest(_.isObject(system_configs) ? system_configs : {});
+    const request = new apipostRequest(
+      _.isObject(system_configs) ? system_configs : {}
+    );
 
     // fix bug for 7.0.8
     if (sleep > 0) {
@@ -738,7 +747,7 @@ const Runtime = function ApipostRuntime(
         const definition = definitions[i];
 
         _.assign(definition, {
-          iteration_id: uuid.v4(), // 每次执行单任务的ID
+          iteration_id: aTools.snowflakeId("runtime"), // 每次执行单任务的ID
           iteration: loopCount,
           iterationData: iterationData[loopCount]
             ? iterationData[loopCount]
@@ -837,7 +846,8 @@ const Runtime = function ApipostRuntime(
                   env_pre_url = _.trim(temp_env.pre_url);
                 } else {
                   // 还原前置url 优先从env_pre_urls中取，取不到则从原env_pre_url中取
-                  env_pre_url = env?.env_pre_urls?.[api_server_id];
+                  env_pre_url =
+                    env?.env_pre_urls?.[api_server_id]?.uri || env?.env_pre_url;
 
                   if (_.isUndefined(env_pre_url)) {
                     env_pre_url = env.env_pre_url;
@@ -2409,7 +2419,7 @@ const Runtime = function ApipostRuntime(
                         );
 
                         if (_cookieItemArray.length == 0) {
-                          item.cookie_id = uuid.v4();
+                          item.cookie_id = aTools.snowflakeId("runtime");
                           item.project_id = _request.project_id;
                           cookies.data.push(item);
                         } else {
@@ -2829,7 +2839,7 @@ const Runtime = function ApipostRuntime(
                         _.matchesProperty("event_id", item.event_id)
                       )
                     ) {
-                      const _iteration_id = uuid.v4();
+                      const _iteration_id = aTools.snowflakeId("runtime");
 
                       if (_.isObject(RUNNER_RESULT_LOG)) {
                         RUNNER_RESULT_LOG[_iteration_id] = {

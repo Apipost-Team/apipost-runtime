@@ -75,7 +75,7 @@
     "apipost-inside-tools": ">=0.1.10",
     "apipost-mock": "^1.0.2",
     "apipost-send": "^0.0.70",
-    "apipost-tools": ">=0.0.20",
+    "apipost-tools": "^0.0.34",
     "art-template": ">=4.13.2",
     "chai-apipost": ">=0.0.4",
     "dayjs": ">=1.11.4",
