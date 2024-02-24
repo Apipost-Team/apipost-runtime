@@ -618,6 +618,8 @@ test("http test", async () => {
     last_msg = msg;
   };
 
+  debugger;
+
   //单任务
   const myCollection = new Collection(test_events, {
     iterationCount: option.iterationCount,
