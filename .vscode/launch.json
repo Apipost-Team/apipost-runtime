@@ -10,6 +10,13 @@
             "name": "调试http请求",
             "program": "${workspaceFolder}/node_modules/.bin/jest",
             "args": ["${workspaceFolder}/test/http.test.js", "--runInBand"]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "调试runner",
+            "program": "${workspaceFolder}/node_modules/.bin/jest",
+            "args": ["${workspaceFolder}/test/runer.test.js", "--runInBand"]
         }
     ]
 }

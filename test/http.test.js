@@ -35,6 +35,7 @@ let test_events = [
       tags: [],
       request: {
         url: "http://cc.apipost.cc:6002/inc",
+        query_add_equal: -1,
         description: "",
         auth: {
           type: "noauth",
@@ -151,7 +152,26 @@ let test_events = [
           ],
         },
         query: {
-          parameter: [],
+          parameter: [
+            {
+              param_id: "248d387e7e0001",
+              description: "",
+              field_type: "String",
+              is_checked: 1,
+              key: "name",
+              not_null: 1,
+              value: "name",
+            },
+            {
+              param_id: "248d387e7e0003",
+              description: "",
+              field_type: "String",
+              is_checked: 1,
+              key: "noname",
+              not_null: 1,
+              value: "",
+            },
+          ],
         },
         cookie: {
           parameter: [],
@@ -264,7 +284,7 @@ let option = {
         ],
       },
       query: {
-        parameter: null,
+        parameter: [],
       },
       body: {
         parameter: null,
@@ -617,8 +637,6 @@ test("http test", async () => {
     console.log(msg);
     last_msg = msg;
   };
-
-  debugger;
 
   //单任务
   const myCollection = new Collection(test_events, {

@@ -657,8 +657,7 @@ const Runtime = function ApipostRuntime(
 
       if (RUNNER_TOTAL_COUNT <= 0) {
         return_msg = "执行次数小于1，无需执行";
-
-        return return_msg;
+        throw new Error(return_msg);
       }
     } else if (RUNNER_STOP[RUNNER_REPORT_ID] > 0) {
       RUNNER_RESULT_LOG =
@@ -670,7 +669,7 @@ const Runtime = function ApipostRuntime(
           null;
 
       return_msg = "任务已停止";
-      return return_msg;
+      throw new Error(return_msg);
     }
 
     // 兼容 单接口请求 和 自动化测试
