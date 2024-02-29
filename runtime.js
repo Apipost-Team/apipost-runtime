@@ -177,6 +177,7 @@ const Runtime = function ApipostRuntime(
     RUNNER_ERROR_COUNT = 0,
     RUNNER_PROGRESS = 0,
     RUNNER_RESULT_LOG = {},
+    RUNNER_CONSOLE_LOG = {}, // 自动化测试控制台日志
     RUNNER_STOP = {};
 
   // 参数初始化
@@ -185,6 +186,7 @@ const Runtime = function ApipostRuntime(
     // RUNNER_TOTAL_COUNT = 0
     startTime = dayjs().format("YYYY-MM-DD HH:mm:ss"); // 开始时间
     startTimeStamp = Date.now(); // 开始时间戳
+    RUNNER_CONSOLE_LOG = {};
     RUNNER_RESULT_LOG = {};
   }
 
@@ -361,10 +363,13 @@ const Runtime = function ApipostRuntime(
     });
 
     const definitionList = [];
-
+    let iteration_count = 0; //循环次数
     (function convertInitDefinitions(initDefinitions) {
       initDefinitions.forEach((item) => {
         if (_.isString(item.test_id)) {
+          if (item?.iterationCount >0){
+            iteration_count = item?.iterationCount;
+          }
           definitionList.push({
             event_id: item.event_id,
             parent_event_id: item.parent_id,
@@ -434,6 +439,7 @@ const Runtime = function ApipostRuntime(
       total_count: totalCount,
       total_effective_count: totalEffectiveCount,
       ignore_count: ignoreCount,
+      iteration_count:iteration_count,
       total_received_data: _.floor(_total_received_data, 2),
       total_response_time: _.floor(_total_response_time, 2),
       average_response_time: _.floor(
@@ -2444,7 +2450,19 @@ const Runtime = function ApipostRuntime(
                   request.formatQueries(_request.request.query.parameter)
                 ).uri;
 
-                if (scene != "auto_test") {
+                if (true) {
+                  //scene != "auto_test"
+                  let consoleHandler = emitRuntimeEvent;
+                  if (scene == "auto_test") {
+                    //自动化测试模式
+                    consoleHandler = (data) => {
+                      const test_id = definition.test_id;
+                      if (_.isEmpty(RUNNER_CONSOLE_LOG[test_id])) {
+                        RUNNER_CONSOLE_LOG[test_id] = [];
+                      }
+                      RUNNER_CONSOLE_LOG[test_id].push(data);
+                    };
+                  }
                   // / done
                   if (res.status === "error") {
                     let _formPara = {};
@@ -2470,7 +2488,7 @@ const Runtime = function ApipostRuntime(
                     }
 
                     // 请求控制台信息
-                    emitRuntimeEvent({
+                    consoleHandler({
                       action: "console",
                       method: "request",
                       message: {
@@ -2529,7 +2547,7 @@ const Runtime = function ApipostRuntime(
                     });
                   } else {
                     _.set(_response, "data.request.url", requestUrl);
-                    emitRuntimeEvent({
+                    consoleHandler({
                       action: "console",
                       method: "request",
                       message: _response,
@@ -2605,6 +2623,13 @@ const Runtime = function ApipostRuntime(
                     _target.assert_error = 1;
                   } else {
                     _target.assert_error = -1;
+                  }
+
+                  if (RUNNER_CONSOLE_LOG[definition.test_id]) {
+                    _target['event_list'] = RUNNER_CONSOLE_LOG[definition.test_id];
+                    delete RUNNER_CONSOLE_LOG[definition.test_id]; // 清空
+                  }else{
+                    _target['event_list'] = [];
                   }
 
                   emitRuntimeEvent({
