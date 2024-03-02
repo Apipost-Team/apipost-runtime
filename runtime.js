@@ -724,6 +724,14 @@ const Runtime = function ApipostRuntime(
       system_configs?.AUTO_CONVERT_FIELD_2_MOCK > 0;
 
     // 发送对象
+    let requestOption = {}
+    if (_.isObject(system_configs)) {
+      requestOption = system_configs;
+      if (_.has(system_configs, "send_timeout")) {
+        //fix: apipost8 将timeout改为send_timeout
+        requestOption.timeout = system_configs.send_timeout;
+      }
+    }
     const request = new apipostRequest(
       _.isObject(system_configs) ? system_configs : {}
     );
