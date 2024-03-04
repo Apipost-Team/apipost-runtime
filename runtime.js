@@ -2244,7 +2244,7 @@ const Runtime = function ApipostRuntime(
 
                 let _isHttpError = -1;
 
-                // cookie
+                //cookie管理器
                 if (
                   typeof cookies === "object" &&
                   _.has(cookies, "switch") &&
@@ -2305,6 +2305,56 @@ const Runtime = function ApipostRuntime(
                             not_null: 1,
                             field_type: "String",
                             type: "Text",
+                            is_checked: 1,
+                          },
+                        ]);
+                      }
+                    }
+                  }
+                }
+
+                if (_.has(_request, "request.cookie.parameter")) {
+                  if (_.isArray(_request.request.cookie.parameter)) {
+                    const _cookieArr = [];
+                    _request.request.cookie.parameter.forEach((_cookie) => {
+                      if (_.isEmpty(_cookie.key)) {
+                        return;
+                      }
+                      if (_cookie.is_checked > 0) {
+                        _cookieArr.push(
+                          `${_cookie.key}=${_cookie.value}`.replace(
+                            /;{1,}/g,
+                            ";"
+                          )
+                        );
+                      }
+                    });
+                    if (_cookieArr.length > 0) {
+                      if (_.has(_request, "request.header.parameter")) {
+                        const _targetHeaderCookie = _.find(
+                          _request.request.header.parameter,
+                          (o) => _.trim(_.toLower(o.key)) == "cookie"
+                        );
+
+                        if (
+                          _targetHeaderCookie &&
+                          _targetHeaderCookie.is_checked > 0
+                        ) {
+                          _targetHeaderCookie.value = `${_cookieArr.join(
+                            ";"
+                          )};${_targetHeaderCookie.value}`; // fix bug for 7.0.8
+                        } else {
+                          _request.request.header.parameter.push({
+                            key: "cookie",
+                            value: _cookieArr.join(";"), // fix cookie bug
+                            is_checked: 1,
+                          });
+                        }
+                      } else {
+                        _.set(_request, "request.header.parameter", [
+                          {
+                            key: "cookie",
+                            value: _cookieArr.join(";"), // fix cookie bug
                             is_checked: 1,
                           },
                         ]);
