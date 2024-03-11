@@ -21,6 +21,7 @@ const apipostRequest = require("apipost-send"),
     getParentTargetIDs,
     getItemFromCollection,
     getInitDefinitionsParentIDs,
+    convertDateTime,
   } = require("./libs/utils"),
   Sandbox = require("./libs/sandbox"),
   Collection = require("./libs/collection");
@@ -234,37 +235,98 @@ const Runtime = function ApipostRuntime(
   ) {
     log = Object.values(log);
 
+    /**
+     * @typedef {Object} ReportStatDef
+     * @property {Object} http - 接口数统计
+     * @property {number} http.total - 接口总数
+     * @property {number} http.executed - 已执行接口数
+     * @property {number} http.success - 成功接口数
+     * @property {number} http.failed - 失败接口数
+     * @property {number} http.ignore - 忽略接口数
+     * @property {Object} assert - 断言统计
+     * @property {Object} assert.http - 断言接口统计
+     * @property {number} assert.http.total - 断言接口总数
+     * @property {number} assert.http.success - 断言接口成功数
+     * @property {number} assert.http.failed - 断言接口失败数
+     * @property {Object} assert.request - 断言请求统计
+     * @property {number} assert.request.total - 断言请求总数
+     * @property {number} assert.request.success - 断言请求成功数
+     * @property {number} assert.request.failed - 断言请求失败数
+     * @property {Object} request - 请求统计
+     * @property {number} request.total - 请求总数
+     * @property {number} request.success - 请求成功数
+     * @property {number} request.failed - 请求失败数
+     * 
+     */
+    /**
+     * @type ReportStatDef
+     */
+    let reportStat = {
+      http: {
+        total_count: 0,
+        executed_count: 0,
+        success_count: 0,
+        failed_count: 0,
+        ignore_count: 0,
+      },
+      assert: {
+        http: {
+          total_count: 0,
+          success_count: 0,
+          failed_count: 0,
+        },
+        request: {
+          total_count: 0,
+          success_count: 0,
+          failed_count: 0,
+        }
+      },
+      request: {
+        total_count: 0,
+        success_count: 0,
+        failed_count: 0,
+      }
+    };
+
+    reportStat.request.total_count = _.size(log);
     // 说明： 本api统计数字均已去重
     // 接口去重后的api集合
     const _uniqLog = _.uniqWith(log, (source, dist) =>
       _.isEqual(source.target_id, dist.target_id)
     );
+    reportStat.http.total_count = _.size(_uniqLog);
 
     // 接口未去重后的忽略集合
     const _ignoreLog = _.filter(log, (item) => item.http_error == -2);
+ 
 
     // 接口去重后的忽略集合
     const _uniqIgnoreLog = _.uniqWith(_ignoreLog, (source, dist) =>
       _.isEqual(source.target_id, dist.target_id)
     );
+    reportStat.http.ignore_count = _.size(_uniqIgnoreLog);
 
     // 接口未去重后的http失败集合
     const _httpErrorLog = _.filter(log, (item) => item.http_error == 1);
+    reportStat.request.failed_count = _.size(_httpErrorLog);
 
     // 接口去重后的http失败集合
     const _uniqHttpErrorLog = _.uniqWith(_httpErrorLog, (source, dist) =>
       _.isEqual(source.target_id, dist.target_id)
     );
+    reportStat.http.failed_count = _.size(_uniqHttpErrorLog);
 
     // 接口未去重后的assert失败集合
     const _assertErrorLog = _.filter(log, (item) =>
       _.find(item.assert, _.matchesProperty("status", "error"))
     );
+    reportStat.assert.request.failed_count = _.size(_assertErrorLog);
 
     // 接口去重后的assert失败集合
     const _uniqAssertErrorLog = _.uniqWith(_assertErrorLog, (source, dist) =>
       _.isEqual(source.target_id, dist.target_id)
     );
+    reportStat.assert.http.failed_count = _.size(_uniqAssertErrorLog);
 
     // 接口未去重后的assert成功集合
     const _assertPassedLog = _.filter(
@@ -278,6 +340,7 @@ const Runtime = function ApipostRuntime(
     const _uniqAssertPassedLog = _.uniqWith(_assertPassedLog, (source, dist) =>
       _.isEqual(source.target_id, dist.target_id)
     );
+    reportStat.assert.http.success_count = _.size(_uniqAssertPassedLog);
 
     // 接口未去重后的http成功集合
     const _httpPassedLog = _.filter(
@@ -289,6 +352,7 @@ const Runtime = function ApipostRuntime(
           _.matchesProperty("target_id", item.target_id)
         )
     );
+    reportStat.request.success_count = _.size(_httpPassedLog);
 
     // 接口去重后的http成功集合
     const _uniqHttpPassedLog = _.uniqWith(_httpPassedLog, (source, dist) =>
@@ -303,18 +367,23 @@ const Runtime = function ApipostRuntime(
 
     // 计算 http 错误个数
     const httpErrorCount = _.size(_uniqHttpErrorLog);
+    reportStat.http.failed_count = httpErrorCount;
 
     // 计算 http 成功个数
     const httpPassedCount = _.size(_uniqHttpPassedLog);
+    reportStat.http.success_count = httpPassedCount;
 
     // 计算 assert 错误个数
     const assertErrorCount = _.size(_uniqAssertErrorLog);
+    reportStat.assert.http.failed_count = assertErrorCount;
 
     // 计算 assert 错误个数
     const assertPassedCount = _.size(_uniqAssertPassedLog);
+    reportStat.assert.http.success_count = assertPassedCount;
 
     // 计算 忽略接口 个数
     const ignoreCount = _.size(_uniqIgnoreLog);
+    reportStat.http.ignore_count = ignoreCount;
 
     // 获取 event 事件状态
     const eventResultStatus = {};
@@ -436,6 +505,7 @@ const Runtime = function ApipostRuntime(
       env_pre_url: option.env.env_pre_url,
       env_pre_urls: option.env?.env_pre_urls,
       user: option.user,
+      report_stat: reportStat,
       total_count: totalCount,
       total_effective_count: totalEffectiveCount,
       ignore_count: ignoreCount,
@@ -462,7 +532,9 @@ const Runtime = function ApipostRuntime(
         failure_per: _.floor(_.divide(assertErrorCount, totalCount), 2),
       },
       start_time: startTime,
+      start_at: convertDateTime(startTime),
       end_time: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+      end_at: convertDateTime(dayjs().format("YYYY-MM-DD HH:mm:ss")),
       long_time: `${_.floor(
         _.divide(Date.now() - startTimeStamp, 1000),
         2
@@ -510,6 +582,7 @@ const Runtime = function ApipostRuntime(
       });
     }
     log = null;
+    report.testing_id = report.test_id;
     return report;
   }
 
@@ -2694,6 +2767,11 @@ const Runtime = function ApipostRuntime(
                     action: "current_event_id",
                     combined_id,
                     test_id: definition.test_id,
+                    iteration:{
+                      iteration_id: definition.iteration_id,
+                      total: definition.iterationCount,
+                      current: definition.iteration + 1,
+                    },
                     current_event_id: definition.event_id,
                     test_log: _target,
                   });

@@ -304,6 +304,16 @@ const arrayPrototypeExtend = function (obj) {
     }
 }
 
+/**
+ * 将 "2024-03-11 17:15:01" 转化为 "2024-03-11T17:15:01+08:00",
+ * @param {string} dateTimeString - 时间格式字符串2024-03-11 17:15:01
+ * @returns {string} - 返回转化后的时间字符串2024-03-11T17:15:01+08:00
+ */
+function convertDateTime(dateTimeString) {
+    // 替换空格为T并在末尾添加时区信息
+    return dateTimeString.replace(' ', 'T') + '+08:00';
+}
+
 module.exports = {
     getCollectionServerId,
     cliConsole,
@@ -313,5 +323,6 @@ module.exports = {
     getParentTargetIDs,
     getInitDefinitionsParentIDs,
     getItemFromCollection,
-    arrayPrototypeExtend
+    arrayPrototypeExtend,
+    convertDateTime
 }
