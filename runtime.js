@@ -987,12 +987,12 @@ const Runtime = function ApipostRuntime(
                       _requestPara[_type] = _type == "header" ? {} : [];
                     }
 
-                    // 全局参数
+                    // 全局参数，不考虑兼容
                     if (
                       typeof project.request === "object" &&
-                      _.isArray(project.request[_type])
+                      _.isArray(project.request[_type]?.parameter)
                     ) {
-                      project.request[_type].forEach((item) => {
+                      project.request[_type].parameter.forEach((item) => {
                         if (item.is_checked > 0 && _.trim(item.key) != "") {
                           if (_type == "header") {
                             _requestPara[_type][_.trim(item.key)] = item;
@@ -1013,9 +1013,9 @@ const Runtime = function ApipostRuntime(
 
                         if (
                           _.has(_folder, "request") &&
-                          _.isArray(_folder.request[_type])
+                          _.isArray(_folder.request[_type]?.parameter)
                         ) {
-                          _folder.request[_type].forEach((item) => {
+                          _folder.request[_type].parameter.forEach((item) => {
                             if (item.is_checked > 0 && _.trim(item.key) != "") {
                               if (_type == "header") {
                                 _requestPara[_type][_.trim(item.key)] = item;
