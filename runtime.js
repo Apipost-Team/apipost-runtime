@@ -2763,15 +2763,16 @@ const Runtime = function ApipostRuntime(
                     _target['event_list'] = [];
                   }
 
+                  _target["iteration"] = {
+                    iteration_id: definition.iteration_id,
+                    total: definition.iterationCount,
+                    current: definition.iteration + 1,
+                  },
+
                   emitRuntimeEvent({
                     action: "current_event_id",
                     combined_id,
                     test_id: definition.test_id,
-                    iteration:{
-                      iteration_id: definition.iteration_id,
-                      total: definition.iterationCount,
-                      current: definition.iteration + 1,
-                    },
                     current_event_id: definition.event_id,
                     test_log: _target,
                   });
