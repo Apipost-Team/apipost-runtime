@@ -335,6 +335,7 @@ const Runtime = function ApipostRuntime(
         _.size(item.assert) > 0 &&
         !_.find(item.assert, _.matchesProperty("status", "error"))
     );
+    reportStat.assert.request.success_count = _.size(_assertPassedLog);
 
     // 接口去重后的assert成功集合
     const _uniqAssertPassedLog = _.uniqWith(_assertPassedLog, (source, dist) =>
@@ -358,6 +359,7 @@ const Runtime = function ApipostRuntime(
     const _uniqHttpPassedLog = _.uniqWith(_httpPassedLog, (source, dist) =>
       _.isEqual(source.target_id, dist.target_id)
     );
+    reportStat.http.success_count = _.size(_uniqHttpPassedLog);
     // console.log(_uniqHttpPassedLog);
     // 计算 总api数
     const totalCount = _.size(_uniqLog);
@@ -367,7 +369,6 @@ const Runtime = function ApipostRuntime(
 
     // 计算 http 错误个数
     const httpErrorCount = _.size(_uniqHttpErrorLog);
-    reportStat.http.failed_count = httpErrorCount;
 
     // 计算 http 成功个数
     const httpPassedCount = _.size(_uniqHttpPassedLog);
@@ -496,6 +497,9 @@ const Runtime = function ApipostRuntime(
       option.env_pre_urls = option.env?.env_pre_urls;
     }
 
+    reportStat.http.executed_count = reportStat.http.success_count + reportStat.http.failed_count; //成功+失败
+    reportStat.assert.http.total_count = reportStat.assert.http.success_count + reportStat.assert.http.failed_count; //成功+失败
+    reportStat.assert.request.total_count = reportStat.assert.request.success_count + reportStat.assert.request.failed_count; //成功+失败
     const report = {
       combined_id: option.combined_id,
       report_id,

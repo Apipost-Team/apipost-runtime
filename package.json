@@ -1,6 +1,6 @@
 {
   "name": "apipost-runtime8",
-  "version": "1.0.12",
+  "version": "1.0.14",
   "description": "apipost-runtime 新版本 for apipost8 支持单接口http请求、自动化测试",
   "main": "./dist/index.js",
   "files": [
