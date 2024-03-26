@@ -20,10 +20,16 @@ const emitAssertResult = function (RUNNER_RESULT_LOG, RUNNER_ERROR_COUNT, status
       });
 
       if (status === 'success') {
+        if (item.assertErrorStatus < 0) {
+          item.assertErrorStatus = 0; //标记为有断言，断言成功,只要断言失败过，就不再标记为成功
+        }
         if (isCliMode()) {
           cliConsole(`${'\t✓'.green} ${expect} 匹配`);
         }
       } else {
+        if (item.assertErrorStatus < 1) {
+          item.assertErrorStatus = 1; //标记为有断言，断言失败，失败过后不再重复标记
+        }
         RUNNER_ERROR_COUNT++;
 
         if (isCliMode()) {

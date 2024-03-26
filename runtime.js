@@ -307,7 +307,7 @@ const Runtime = function ApipostRuntime(
     reportStat.http.ignore_count = _.size(_uniqIgnoreLog);
 
     // 接口未去重后的http失败集合
-    const _httpErrorLog = _.filter(log, (item) => item.http_error == 1);
+    const _httpErrorLog = _.filter(log, (item) => item.errorStatus > 0);
     reportStat.request.failed_count = _.size(_httpErrorLog);
 
     // 接口去重后的http失败集合
@@ -317,9 +317,7 @@ const Runtime = function ApipostRuntime(
     reportStat.http.failed_count = _.size(_uniqHttpErrorLog);
 
     // 接口未去重后的assert失败集合
-    const _assertErrorLog = _.filter(log, (item) =>
-      _.find(item.assert, _.matchesProperty("status", "error"))
-    );
+    const _assertErrorLog = _.filter(log, (item) => item.assertErrorStatus > 0);
     reportStat.assert.request.failed_count = _.size(_assertErrorLog);
 
     // 接口去重后的assert失败集合
@@ -329,12 +327,7 @@ const Runtime = function ApipostRuntime(
     reportStat.assert.http.failed_count = _.size(_uniqAssertErrorLog);
 
     // 接口未去重后的assert成功集合
-    const _assertPassedLog = _.filter(
-      log,
-      (item) =>
-        _.size(item.assert) > 0 &&
-        !_.find(item.assert, _.matchesProperty("status", "error"))
-    );
+    const _assertPassedLog = _.filter(log, (item) => item.assertErrorStatus == 0);
     reportStat.assert.request.success_count = _.size(_assertPassedLog);
 
     // 接口去重后的assert成功集合
@@ -344,15 +337,7 @@ const Runtime = function ApipostRuntime(
     reportStat.assert.http.success_count = _.size(_uniqAssertPassedLog);
 
     // 接口未去重后的http成功集合
-    const _httpPassedLog = _.filter(
-      log,
-      (item) =>
-        item.http_error == -1 &&
-        !_.find(
-          _uniqHttpErrorLog,
-          _.matchesProperty("target_id", item.target_id)
-        )
-    );
+    const _httpPassedLog = _.filter(log, (item) => item.errorStatus == 0);
     reportStat.request.success_count = _.size(_httpPassedLog);
 
     // 接口去重后的http成功集合
@@ -1874,6 +1859,8 @@ const Runtime = function ApipostRuntime(
                   http_error: -1,
                   assert: [],
                   datetime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+                  assertErrorStatus: -1, // -1 没有断言 0 断言通过 1 断言错误
+                  errorStatus:0, //0 成功 1 失败, 如果没有断言，只接受http 200
                 };
 
                 // 执行预执行脚本
@@ -2539,10 +2526,20 @@ const Runtime = function ApipostRuntime(
                   );
                 } catch (err) {} // 此错误无需中止运行
 
+                let errorStatus = _target.assertErrorStatus > 0 ? 1 : 0; //0 成功 1 失败, 如果没有断言，只接受http 200
+                if (_target.assertErrorStatus < 0) {
+                  //没有断言
+                  errorStatus = 1; //默认设置为不通过
+                  if(_response && _response.data && _response.data.response && _response.data.response.code == 200){
+                    errorStatus = 0; //http 200
+                  }
+                }
+                
                 _.assign(_target, {
                   request: _request,
                   response: _response,
                   http_error: _isHttpError,
+                  errorStatus: errorStatus,
                 });
 
                 // fix bug for 7.1.16
