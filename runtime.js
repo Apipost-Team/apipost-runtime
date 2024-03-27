@@ -288,7 +288,7 @@ const Runtime = function ApipostRuntime(
       }
     };
 
-    reportStat.request.total_count = _.size(log);
+    //reportStat.request.total_count = _.size(log); //存在忽略
     // 说明： 本api统计数字均已去重
     // 接口去重后的api集合
     const _uniqLog = _.uniqWith(log, (source, dist) =>
@@ -485,6 +485,7 @@ const Runtime = function ApipostRuntime(
     reportStat.http.executed_count = reportStat.http.success_count + reportStat.http.failed_count; //成功+失败
     reportStat.assert.http.total_count = reportStat.assert.http.success_count + reportStat.assert.http.failed_count; //成功+失败
     reportStat.assert.request.total_count = reportStat.assert.request.success_count + reportStat.assert.request.failed_count; //成功+失败
+    reportStat.request.total_count = reportStat.request.success_count + reportStat.request.failed_count; //成功+失败
     const report = {
       combined_id: option.combined_id,
       report_id,
@@ -853,9 +854,32 @@ const Runtime = function ApipostRuntime(
           // 设置沙盒的迭代变量
           switch (definition.type) {
             case "wait":
+              const wait_start_time = performance.now();
+              emitRuntimeEvent({
+                action:"progress_sync",
+                event_id: definition.event_id,
+                parent_event_id:definition.parent_event_id,
+                parent_id:definition.parent_id,
+                type:"wait",
+                status: -1, //未开始
+                iteration: definition.iteration,
+                elapsed:0,
+                values:definition.condition
+              });              
               if (definition.condition.sleep > 0) {
                 sleepDelay(parseInt(definition.condition.sleep));
               }
+              emitRuntimeEvent({
+                action:"progress_sync",
+                event_id: definition.event_id,
+                parent_event_id:definition.parent_event_id,
+                parent_id:definition.parent_id,                
+                type:"wait",
+                status: 1, //结束
+                iteration: definition.iteration,
+                elapsed:performance.now() -wait_start_time,
+                values:definition.condition //变量值
+              });               
               break;
             case "script":
               // case 'assert':
@@ -863,6 +887,18 @@ const Runtime = function ApipostRuntime(
                 _.has(definition, "data.content") &&
                 _.isString(definition.data.content)
               ) {
+                const script_start_time = performance.now();
+                emitRuntimeEvent({
+                  action:"progress_sync",
+                  event_id:definition.event_id,
+                  parent_event_id:definition.parent_event_id,
+                  parent_id:definition.parent_id,
+                  type:"script",
+                  status: -1, //未开始
+                  iteration: definition.iteration,
+                  elapsed:0,
+                  values:{} //变量值
+                });
                 await mySandbox.execute(
                   RUNNER_RESULT_LOG,
                   RUNNER_ERROR_COUNT,
@@ -878,6 +914,17 @@ const Runtime = function ApipostRuntime(
                     }
                   }
                 );
+                emitRuntimeEvent({
+                  action:"progress_sync",
+                  event_id:definition.event_id,
+                  parent_event_id:definition.parent_event_id,
+                  parent_id:definition.parent_id,
+                  type:"script",
+                  status: 1, //执行完成
+                  iteration: definition.iteration,
+                  elapsed:performance.now() - script_start_time,
+                  values:{} //变量值
+                });                
               }
               break;
             case "if":
@@ -896,16 +943,67 @@ const Runtime = function ApipostRuntime(
                   mySandbox.replaceIn(definition.condition.value)
                 )
               ) {
+                emitRuntimeEvent({
+                  action:"progress_sync",
+                  event_id:definition.event_id,
+                  parent_event_id:definition.parent_event_id,
+                  parent_id:definition.parent_id,                  
+                  type:"if",
+                  status: -1, //未通过
+                  elapsed:0,
+                  iteration:definition.iteration,
+                  values:definition.condition,
+                });
+                const if_start_time = performance.now();
                 await run(definition.children, option, initFlag + 1, loopCount);
+                emitRuntimeEvent({
+                  action:"progress_sync",
+                  event_id:definition.event_id,
+                  parent_event_id:definition.parent_event_id,
+                  parent_id:definition.parent_id,                                    
+                  type:"if",
+                  status: 1, //未通过
+                  elapsed:performance.now() - if_start_time,
+                  iteration:definition.iteration,
+                  values:definition.condition,
+                });                
+              }else{
+                emitRuntimeEvent({
+                  action:"progress_sync",
+                  event_id:definition.event_id,
+                  parent_event_id:definition.parent_event_id,
+                  parent_id:definition.parent_id,                  
+                  type:"if",
+                  status: 0,
+                  elapsed:0,
+                  iteration:definition.iteration,
+                  values:definition.condition
+                });
               }
               break;
             case "request":
             case "sample":
             case "api":
+            
               if (
                 _.has(definition, "request") &&
                 _.isObject(definition.request)
               ) {
+                emitRuntimeEvent({
+                  action:"progress_sync",
+                  event_id: definition.event_id,
+                  parent_event_id: definition?.parent_event_id,
+                  parent_id: definition?.parent_event_id,
+                  type:"request",
+                  status: -1, //开始
+                  elapsed:0,
+                  iteration:  definition.iteration, //当前轮次
+                  values:{
+                    url: definition?.request?.url,
+                    http_code:-1
+                  } //变量值
+                }); 
+                const request_start_time = performance.now();               
                 // 多环境
                 const api_server_id = getCollectionServerId(
                   definition.request.target_id,
@@ -2770,6 +2868,22 @@ const Runtime = function ApipostRuntime(
                     current: definition.iteration + 1,
                   },
 
+                  //优先发送状态
+                  emitRuntimeEvent({
+                    action:"progress_sync",
+                    event_id:definition.event_id,
+                    parent_event_id:definition?.parent_event_id,
+                    parent_id:definition?.parent_id,
+                    type:"request",
+                    status: _target.errorStatus > 0 ? 0 : 1, //0 成功 1 失败,取反
+                    iteration: definition.iteration,
+                    elapsed:performance.now() - request_start_time, //执行时间
+                    values:{
+                      url: _target?.request?.url,
+                      http_code: _target?.response?.data?.response?.code ? _target.response.data.response.code : -1
+                    }                  
+                  });
+
                   emitRuntimeEvent({
                     action: "current_event_id",
                     combined_id,
@@ -2808,6 +2922,19 @@ const Runtime = function ApipostRuntime(
                   i < mySandbox.replaceIn(definition.condition.limit);
                   i++
                 ) {
+                  emitRuntimeEvent({
+                      action:"progress_sync",
+                      event_id: definition.event_id,
+                      type:"for",
+                      status: 1, //只有通过
+                      elapsed: 0,
+                      iteration:  definition.iteration,
+                      values:{
+                        current: i,
+                        total: definition.condition.limit
+                      } //变量值
+                    }
+                  );
                   await run(
                     definition.children,
                     _.assign(_for_option, {
@@ -2926,7 +3053,7 @@ const Runtime = function ApipostRuntime(
                 }
               }
               break;
-            case "begin":
+            case "begin":                   
               let _begin_option = _.cloneDeep(option);
 
               if (
@@ -2936,12 +3063,35 @@ const Runtime = function ApipostRuntime(
                 _begin_option.iterationData =
                   definition.condition.iterationData;
               }
+              const begin_start_time = performance.now();
+              emitRuntimeEvent({
+                action: "progress_sync",
+                test_id: definition.test_id,
+                parent_event_id:definition.parent_event_id,
+                parent_id:definition.parent_id,
+                status:-1, //没有开始
+                type:"begin",
+                elapsed:0,
+                iteration: definition.iteration,
+                values:{}
+              });              
               await run(
                 definition.children,
                 _begin_option,
                 initFlag + 1,
                 loopCount
               );
+              emitRuntimeEvent({
+                action: "progress_sync",
+                test_id: definition.test_id,
+                parent_event_id:definition.parent_event_id,
+                parent_id:definition.parent_id,
+                status:1, //执行完成
+                type:"begin",
+                elapsed:performance.now() - begin_start_time, //执行时间
+                iteration: definition.iteration,
+                values:{}
+              });                
               break;
             default:
               break;
