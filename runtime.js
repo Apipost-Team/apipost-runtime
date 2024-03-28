@@ -791,8 +791,8 @@ const Runtime = function ApipostRuntime(
     }
 
     // 自动替换 Mock
-    const AUTO_CONVERT_FIELD_2_MOCK =
-      system_configs?.AUTO_CONVERT_FIELD_2_MOCK > 0;
+    //const AUTO_CONVERT_FIELD_2_MOCK =system_configs?.AUTO_CONVERT_FIELD_2_MOCK > 0;
+    const AUTO_CONVERT_FIELD_2_MOCK = system_configs?.auto_gen_mock_url < 0 ? false : true;
 
     // 发送对象
     let requestOption = {}
