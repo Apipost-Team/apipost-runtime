@@ -1075,7 +1075,7 @@ const Runtime = function ApipostRuntime(
                   "auth",
                   "pre_script",
                   "test",
-                  "resful",
+                  "restful",
                   "pre_tasks",
                   "post_tasks",
                 ];
@@ -1084,7 +1084,7 @@ const Runtime = function ApipostRuntime(
                   let _type = para_arrays[_j];
 
                   if (
-                    _.indexOf(["header", "body", "query", "resful"], _type) > -1
+                    _.indexOf(["header", "body", "query", "restful"], _type) > -1
                   ) {
                     if (typeof _requestPara[_type] === "undefined") {
                       _requestPara[_type] = _type == "header" ? {} : [];
@@ -1812,7 +1812,7 @@ const Runtime = function ApipostRuntime(
 
                 // script_variables
                 let _script_variables = {};
-                _.forEach(_requestPara?.resful, (item) => {
+                _.forEach(_requestPara?.restful, (item) => {
                   _script_variables[
                     mySandbox.replaceIn(
                       item?.key,
@@ -2024,7 +2024,7 @@ const Runtime = function ApipostRuntime(
                 let _request = _.cloneDeep(definition.request);
 
                 // 替换 _requestPara 的参数变量
-                new Array("header", "query", "body", "resful").forEach(
+                new Array("header", "query", "body", "restful").forEach(
                   (type) => {
                     _requestPara[type] = _.values(_requestPara[type]);
                     _requestPara[type].map((item) => {
@@ -2368,15 +2368,15 @@ const Runtime = function ApipostRuntime(
 
                 // fixed bug add 替换路径变量
                 if (
-                  _.isArray(_requestPara.resful) &&
-                  _requestPara.resful.length > 0
+                  _.isArray(_requestPara.restful) &&
+                  _requestPara.restful.length > 0
                 ) {
-                  _requestPara.resful.forEach((_resful) => {
-                    _resful.key = _.trim(_resful.key);
+                  _requestPara.restful.forEach((_restful) => {
+                    _restful.key = _.trim(_restful.key);
 
-                    if (_resful.is_checked > 0 && _resful.key !== "") {
-                      _url = _.replace(_url, `:${_resful.key}`, _resful.value);
-                      _url = _.replace(_url, `{${_resful.key}}`, _resful.value);
+                    if (_restful.is_checked > 0 && _restful.key !== "") {
+                      _url = _.replace(_url, `:${_restful.key}`, _restful.value);
+                      _url = _.replace(_url, `{${_restful.key}}`, _restful.value);
                     }
                   });
                 }
@@ -2542,43 +2542,42 @@ const Runtime = function ApipostRuntime(
                 }
 
                 //如果是mock环境，则携带apipost_id
-                if (`${option.env_id}` == "-2") {
-                  //判断query数组内是否包含apipost_id
-                  const requestApipostId =
-                    _request?.request?.query?.parameter.find(
-                      (item) => item.key === "apipost_id"
-                    );
-                  if (_.isUndefined(requestApipostId)) {
-                    _request.request.query.parameter.push({
-                      key: "apipost_id",
-                      value: _.take(_request?.target_id, 6).join(""),
-                      description: "",
-                      not_null: 1,
-                      field_type: "String",
-                      type: "Text",
-                      is_checked: 1,
-                    });
-                  }
-
-                  try {
-                    let _urlParse = urlNode.parse(_pre_url);
-                    let _mock_url = _.trim(_request?.mock_url);
-
-                    if (_.isEmpty(_mock_url) || _mock_url == "/") {
-                      let _urlParse = urlNode.parse(_request?.url);
-                      _mock_url = _urlParse?.pathname;
+                if (option?.env?.env_type == 2) {
+                    //判断query数组内是否包含apipost_id
+                    const requestApipostId =
+                      _request?.request?.query?.parameter.find(
+                        (item) => item.key === "apipost_id"
+                      );
+                    if (_.isUndefined(requestApipostId)) {
+                     _request?.request.query.parameter.push({
+                        key: "apipost_id",
+                        value: _request?.target_id,
+                        is_checked:1,
+                        not_null:1,
+                        field_type:"String",
+                        description:"",
+                      });
                     }
 
-                    _.set(
-                      _request,
-                      "updateurl",
-                      urljoins(
-                        _pre_url,
-                        _.trimStart(_request?.mock_url, _urlParse?.path),
-                        `?apipost_id=${_.take(_request?.target_id, 6).join("")}`
-                      )
-                    );
-                  } catch (e) {}
+                    try {
+                      let _urlParse = urlNode.parse(_pre_url);
+                      let _mock_url = _.trim(_request?.mock_url);
+
+                      if (_.isEmpty(_mock_url) || _mock_url == "/") {
+                        let _urlParse = urlNode.parse(_request?.url);
+                        _mock_url = _urlParse?.pathname;
+                      }
+
+                      _.set(
+                        _request,
+                        "updateurl",
+                        urljoins(
+                          _pre_url,
+                          _.trimStart(_request?.mock_url, _urlParse?.path),
+                          `?apipost_id=${_request?.target_id}`
+                        )
+                      );
+                    } catch (e) {}
                 }
 
                 if (_.isString(_request?.updateurl)) {
