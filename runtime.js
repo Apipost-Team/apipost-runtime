@@ -607,11 +607,6 @@ const Runtime = function ApipostRuntime(
    * @returns {string} - 返回信息，如果有错误则返回错误信息
    */
   async function run(definitions, option = {}, initFlag = 0, loopCount = 0) {
-    /**
-     * 返回信息，如果有错误则返回错误信息
-     * @type string
-     */
-    let return_msg = "";
 
     /**
      * @typedef {Object} RuntimeOption2Def
@@ -645,9 +640,10 @@ const Runtime = function ApipostRuntime(
      */
 
     /**
+     * 补全数据
      * @type RuntimeOption2Def
      */
-    let option2 = _.assign(
+    option = _.assign(
       {
         project: {},
         collection: [], // 当前项目的所有接口列表
@@ -683,15 +679,14 @@ const Runtime = function ApipostRuntime(
       sleep,
       system_configs,
       database_configs,
-    } = option2;
+    } = option;
 
     if (_.isEmpty(RUNNER_REPORT_ID)){
       RUNNER_REPORT_ID = aTools.snowflakeId("runtime");
     }
 
     if (!_.isObject(env)) {
-      return_msg = "env 参数必须是一个对象";
-      throw new Error(return_msg);
+      throw new Error("env 参数必须是一个对象");
     }
 
     let environment = env.environment || {};
@@ -733,20 +728,16 @@ const Runtime = function ApipostRuntime(
       initDefinitions = definitions;
 
       if (RUNNER_TOTAL_COUNT <= 0) {
-        return_msg = "执行次数小于1，无需执行";
-        throw new Error(return_msg);
+        throw new Error("执行次数小于1，无需执行");
       }
     } else if (RUNNER_STOP[RUNNER_REPORT_ID] > 0) {
       RUNNER_RESULT_LOG =
         definitions =
         option =
-        option2 =
         collection =
         initDefinitions =
           null;
-
-      return_msg = "任务已停止";
-      throw new Error(return_msg);
+      throw new Error("任务已停止");
     }
 
     // 兼容 单接口请求 和 自动化测试
@@ -3482,7 +3473,6 @@ const Runtime = function ApipostRuntime(
         }
       }
     }
-    return return_msg;
   }
 
   // 构造一个执行对象
