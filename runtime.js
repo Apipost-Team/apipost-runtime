@@ -6,7 +6,6 @@ const apipostRequest = require("apipost-send"),
   urlNode = require("url"),
   _ = require("lodash"),
   JSON5 = require("json5"),
-  uuid = require("uuid"),
   dayjs = require("dayjs"),
   stripJsonComments = require("strip-json-comments"),
   JSONbig = require("json-bigint"),
@@ -495,7 +494,6 @@ const Runtime = function ApipostRuntime(
     reportStat.assert.request.total_count = reportStat.assert.request.success_count + reportStat.assert.request.failed_count; //成功+失败
     reportStat.request.total_count = reportStat.request.success_count + reportStat.request.failed_count; //成功+失败
     const report = {
-      combined_id: option.combined_id,
       report_id,
       report_name: option.default_report_name,
       env_id: option.env.env_id,
@@ -544,41 +542,16 @@ const Runtime = function ApipostRuntime(
       _.set(report, "user.nick_name", "匿名");
     }
 
-    if (uuid.validate(option.combined_id) && _.isArray(option.test_events)) {
-      // 测试套件
-      _.assign(report, {
-        type: "combined",
-        test_id: _.isArray(option.test_events)
-          ? _.map(option.test_events, (o) => o.test_id)
-          : [option.test_events.test_id],
-      });
-
-      option.test_events.forEach((test_event) => {
-        report.children.push(
-          calculateRuntimeReport(
-            _.filter(log, (o) => o.test_id == test_event.test_id),
-            initDefinitions,
-            report_id,
-            _.assign(option, {
-              combined_id: 0,
-              test_events: test_event,
-              default_report_name: test_event.name,
-            })
-          )
-        );
-      });
-    } else {
-      // 单测试用例
-      const _test_id = _.isArray(option.test_events)
-        ? option.test_events[0].test_id
-        : option.test_events.test_id;
-      _.assign(report, {
-        type: "single",
-        test_id: _test_id,
-        event_status: eventResultStatus,
-        test_events: _.filter(definitionList, (o) => o.test_id == _test_id),
-      });
-    }
+    // 单测试用例
+    const _test_id = _.isArray(option.test_events)
+    ? option.test_events[0].test_id
+    : option.test_events.test_id;
+  _.assign(report, {
+    type: "single",
+    test_id: _test_id,
+    event_status: eventResultStatus,
+    test_events: _.filter(definitionList, (o) => o.test_id == _test_id),
+  });
     log = null;
     report.testing_id = report.test_id;
     return report;
@@ -667,7 +640,6 @@ const Runtime = function ApipostRuntime(
       cookies,
       collection,
       iterationData,
-      combined_id,
       test_events,
       default_report_name,
       user,
@@ -741,10 +713,6 @@ const Runtime = function ApipostRuntime(
     }
 
     // 兼容 单接口请求 和 自动化测试
-    if (!uuid.validate(combined_id)) {
-      combined_id = "0";
-    }
-
     if (!_.isObject(test_events)) {
       test_events = {
         test_id: aTools.snowflakeId("runtime"),
@@ -2907,7 +2875,6 @@ const Runtime = function ApipostRuntime(
 
                   emitRuntimeEvent({
                     action: "current_event_id",
-                    combined_id,
                     test_id: definition.test_id,
                     current_event_id: definition.event_id,
                     test_log: _target,
@@ -3126,7 +3093,6 @@ const Runtime = function ApipostRuntime(
           ) {
             emitRuntimeEvent({
               action: "current_event_id",
-              combined_id,
               test_id: definition.test_id,
               current_event_id: definition.event_id,
               test_log: null, // 非 api 不传 test_log
@@ -3150,7 +3116,6 @@ const Runtime = function ApipostRuntime(
             emitRuntimeEvent({
               action: "progress",
               progress: RUNNER_PROGRESS,
-              combined_id,
               test_id: definition.test_id,
               current_event_id: definition.event_id,
             });
@@ -3211,7 +3176,6 @@ const Runtime = function ApipostRuntime(
                 initDefinitions,
                 RUNNER_REPORT_ID,
                 {
-                  combined_id,
                   test_events,
                   default_report_name,
                   user,
@@ -3226,7 +3190,6 @@ const Runtime = function ApipostRuntime(
 
               emitRuntimeEvent({
                 action: "complete",
-                combined_id,
                 ignore_error,
                 enable_sandbox,
                 envs: {
