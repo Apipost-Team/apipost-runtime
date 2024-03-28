@@ -1016,7 +1016,7 @@ const Runtime = function ApipostRuntime(
                   iteration:  definition.iteration, //当前轮次
                   values:{
                     url: definition?.request?.url,
-                    http_code:-1
+                    http_code:0
                   } //变量值
                 }); 
                 const request_start_time = performance.now();               
@@ -1293,7 +1293,9 @@ const Runtime = function ApipostRuntime(
                           switch (_.toLower(item.type)) {
                             case "database": // database 最终也是要转化成脚本
                               if (
-                                Number(item.enabled) > 0 &&
+                                item?.enabled > 0 &&
+                                item.data?.connectionId &&
+                                _.isObject(database_configs) &&
                                 _.isObject(
                                   database_configs[item.data?.connectionId]
                                 )
@@ -2360,6 +2362,7 @@ const Runtime = function ApipostRuntime(
                 let _url = _request.request.url
                   ? _request.request.url
                   : _request.url;
+                _url = _url ? _url : ""; //url 为undefined时，设置为空字符串
                 _url = mySandbox.replaceIn(
                   _url,
                   null,
@@ -2638,21 +2641,11 @@ const Runtime = function ApipostRuntime(
                     )
                   );
                 } catch (err) {} // 此错误无需中止运行
-
-                let errorStatus = _target.assertErrorStatus > 0 ? 1 : 0; //0 成功 1 失败, 如果没有断言，只接受http 200
-                if (_target.assertErrorStatus < 0) {
-                  //没有断言
-                  errorStatus = 1; //默认设置为不通过
-                  if(_response && _response.data && _response.data.response && _response.data.response.code == 200){
-                    errorStatus = 0; //http 200
-                  }
-                }
                 
                 _.assign(_target, {
                   request: _request,
                   response: _response,
-                  http_error: _isHttpError,
-                  errorStatus: errorStatus,
+                  http_error: _isHttpError
                 });
 
                 // fix bug for 7.1.16
@@ -2870,6 +2863,16 @@ const Runtime = function ApipostRuntime(
                     _target.assert_error = -1;
                   }
 
+                  let errorStatus = _target.assertErrorStatus > 0 ? 1 : 0; //0 成功 1 失败, 如果没有断言，只接受http 200
+                  if (_target.assertErrorStatus < 0) {
+                    //没有断言
+                    errorStatus = 1; //默认设置为不通过
+                    if(_response && _response.data && _response.data.response && _response.data.response.code == 200){
+                      errorStatus = 0; //http 200
+                    }
+                  }
+                  _target.errorStatus = errorStatus; //修改断言结果               
+
                   if (RUNNER_CONSOLE_LOG[definition.test_id]) {
                     _target['event_list'] = RUNNER_CONSOLE_LOG[definition.test_id];
                     delete RUNNER_CONSOLE_LOG[definition.test_id]; // 清空
@@ -2895,7 +2898,7 @@ const Runtime = function ApipostRuntime(
                     elapsed:performance.now() - request_start_time, //执行时间
                     values:{
                       url: _target?.request?.url,
-                      http_code: _target?.response?.data?.response?.code ? _target.response.data.response.code : -1
+                      http_code: _target?.response?.data?.response?.code ? _target.response.data.response.code : 0
                     }                  
                   });
 
