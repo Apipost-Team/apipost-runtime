@@ -1043,7 +1043,7 @@ const Runtime = function ApipostRuntime(
                   if ((!env_pre_url) && env?.env_pre_urls){
                     if ((!api_server_id) || api_server_id == '0'){
                       //为空时候，直接获取环境默认值
-                      env_pre_url = env?.env_pre_urls.default.uri;
+                      env_pre_url = env?.env_pre_urls?.default?.uri;
                     }else{
                       //按api_server_id查找
                       let find_key = _.findKey(env.env_pre_urls, (val) => val.server_id ==api_server_id );
