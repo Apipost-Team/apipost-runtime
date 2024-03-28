@@ -181,6 +181,9 @@ const Runtime = function ApipostRuntime(
     RUNNER_CONSOLE_LOG = {}, // 自动化测试控制台日志
     RUNNER_STOP = {};
 
+  //强制退出
+  let RUNNER_FORCE_STOP = 0;
+
   // 参数初始化
   function runInit() {
     RUNNER_ERROR_COUNT = 0;
@@ -204,6 +207,11 @@ const Runtime = function ApipostRuntime(
       report_id,
       message,
     });
+  }
+
+  this.forceStop= () => {
+    RUNNER_FORCE_STOP = 1;
+    //throw new Error("强制停止1");
   }
 
   let startTime = dayjs().format("YYYY-MM-DD HH:mm:ss"), // 开始时间
@@ -848,6 +856,14 @@ const Runtime = function ApipostRuntime(
           }
         } else {
           mySandbox.dynamicVariables.iterationData.clear();
+        }
+
+        /**
+         * 强制退出
+         */
+        if (RUNNER_FORCE_STOP > 0){
+          console.log('force stop');
+          throw new Error("force stop");
         }
 
         if (definition.enabled > 0) {
