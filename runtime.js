@@ -1038,9 +1038,21 @@ const Runtime = function ApipostRuntime(
                 ) {
                   env_pre_url = _.trim(temp_env.pre_url);
                 } else {
+                  env_pre_url = env?.env_pre_url;
                   // 还原前置url 优先从env_pre_urls中取，取不到则从原env_pre_url中取
-                  env_pre_url =
-                    env?.env_pre_urls?.[api_server_id]?.uri || env?.env_pre_url;
+                  if ((!env_pre_url) && env?.env_pre_urls){
+                    if ((!api_server_id) || api_server_id == '0'){
+                      //为空时候，直接获取环境默认值
+                      env_pre_url = env?.env_pre_urls.default.uri;
+                    }else{
+                      //按api_server_id查找
+                      let find_key = _.findKey(env.env_pre_urls, (val) => val.server_id ==api_server_id );
+                      if (find_key){
+                        env_pre_url = env.env_pre_urls[find_key]?.uri; //更新为选择的环境
+                      }
+                    }
+
+                  }
 
                   if (_.isUndefined(env_pre_url)) {
                     env_pre_url = env.env_pre_url;
